@@ -5,7 +5,7 @@
 ## Observabilidad y costo
 ```bash
 npm install
-npx tsx --env-file=.env observabilidad.ts
+npx tsx observabilidad.ts
 ```
 Mide tokens y latencia por llamada. Palancas de costo: **prompt caching** (prefijo estable) y **dos niveles de modelo**.
 

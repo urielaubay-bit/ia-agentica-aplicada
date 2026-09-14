@@ -4,7 +4,6 @@
 
 ## Instalar y correr
 ```bash
-cp .env.example .env.local   # pon tu ANTHROPIC_API_KEY
 npm install
 npm run dev                  # http://localhost:3000
 ```

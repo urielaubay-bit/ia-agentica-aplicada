@@ -4,12 +4,16 @@
 
 ## Setup
 1. Crea tu bot en Telegram con **@BotFather** (`/newbot`) y copia el token.
-2. `cp .env.example .env` y pon `ANTHROPIC_API_KEY` y `BOT_TOKEN`.
+2. Exporta el token en tu terminal (tu `ANTHROPIC_API_KEY` ya está configurada del día 1):
+   ```bash
+   export BOT_TOKEN=...          # el de @BotFather
+   export ALLOWED_IDS=           # opcional: tu id de Telegram (via @userinfobot)
+   ```
 3. Pon tus documentos en `docs/*.txt`.
 
 ## Correr
 ```bash
 npm install
-npx tsx --env-file=.env bot.ts
+npx tsx bot.ts
 ```
-Escríbele a tu bot en Telegram. Responde desde tus documentos. Para el control de acceso, pon tu id (via @userinfobot) en `ALLOWED_IDS` y reinicia.
+Escríbele a tu bot en Telegram. Responde desde tus documentos. Para el control de acceso, exporta tu id (via @userinfobot) en `ALLOWED_IDS` y reinicia.

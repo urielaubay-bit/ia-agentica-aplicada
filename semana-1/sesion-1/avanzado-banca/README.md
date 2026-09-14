@@ -10,9 +10,8 @@ Mismo stack del día 1 (AI SDK + Zod), pero en un caso de negocio real. Refuerza
 
 ## Correr
 ```bash
-cp .env.example .env      # pon tu ANTHROPIC_API_KEY
 npm install
-npx tsx --env-file=.env banca.ts
+npx tsx banca.ts
 ```
 
 ## Resultado esperado

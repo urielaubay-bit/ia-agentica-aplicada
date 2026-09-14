@@ -4,12 +4,11 @@
 
 ## Instalar
 ```bash
-cp .env.example .env
 npm install
 ```
 
 ## Pasos
-- `npx tsx --env-file=.env paso4.ts` — reporte ejecutivo validado (5 claves).
+- `npx tsx paso4.ts` — reporte ejecutivo validado (5 claves).
 - `tu-dominio.ts` — plantilla: define TU tool + TU schema y corre tu agente baseline.
 
 ## Tu proyecto
