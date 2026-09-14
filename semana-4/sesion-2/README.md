@@ -4,11 +4,9 @@
 
 ## Setup
 1. Crea tu bot en Telegram con **@BotFather** (`/newbot`) y copia el token.
-2. Exporta el token en tu terminal (tu `ANTHROPIC_API_KEY` ya está configurada del día 1):
-   ```bash
-   export BOT_TOKEN=...          # el de @BotFather
-   export ALLOWED_IDS=           # opcional: tu id de Telegram (via @userinfobot)
-   ```
+2. Configura el token (tu `ANTHROPIC_API_KEY` ya está lista del día 1):
+   - **Windows (PowerShell):** `setx BOT_TOKEN "..."` (y `setx ALLOWED_IDS "tu-id"` opcional), luego abre una terminal nueva.
+   - **Mac / Linux:** `export BOT_TOKEN=...` (y `export ALLOWED_IDS=tu-id` opcional).
 3. Pon tus documentos en `docs/*.txt`.
 
 ## Correr

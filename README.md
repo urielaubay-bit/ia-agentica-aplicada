@@ -9,12 +9,20 @@ Código de los laboratorios del curso **IA Agéntica Aplicada** de NeuronProcess
    git clone https://github.com/urielaubay-bit/ia-agentica-aplicada.git
    cd ia-agentica-aplicada
    ```
-2. Consigue tu `ANTHROPIC_API_KEY` en https://console.anthropic.com y **configúrala una sola vez**. Para que quede fija en todas tus terminales, agrégala a tu `~/.bashrc` (o `~/.zshrc`):
-   ```bash
-   echo 'export ANTHROPIC_API_KEY=sk-ant-...' >> ~/.bashrc
-   source ~/.bashrc
+2. Consigue tu `ANTHROPIC_API_KEY` en https://console.anthropic.com y **configúrala una sola vez** en tu sistema (así no necesitas `.env` por carpeta):
+
+   **Windows (PowerShell o CMD):**
+   ```powershell
+   setx ANTHROPIC_API_KEY "sk-ant-..."
    ```
-   (Solo para la Semana 4 · Sesión 2 agrega también `export BOT_TOKEN=...` de @BotFather.)
+   Luego **cierra y abre una terminal nueva** (o reinicia VS Code): `setx` solo aplica a terminales nuevas.
+
+   **Mac / Linux:**
+   ```bash
+   echo 'export ANTHROPIC_API_KEY=sk-ant-...' >> ~/.bashrc && source ~/.bashrc
+   ```
+
+   (Solo para la Semana 4 · Sesión 2 configura además `BOT_TOKEN` igual: `setx BOT_TOKEN "..."` en Windows, o `export BOT_TOKEN=...` en Mac/Linux.)
 3. Entra a la sesión del día, instala y corre. **Sin `.env`, sin `--env-file`**: los scripts leen la key de tu entorno.
    ```bash
    cd semana-1/sesion-1
