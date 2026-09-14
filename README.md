@@ -2,6 +2,8 @@
 
 Código de los laboratorios del curso **IA Agéntica Aplicada** de NeuronProcess: 5 semanas, 2 sesiones por semana (10 sesiones). Cada sesión = 30 min de teoría + 90 min de práctica, y cada carpeta es **autocontenida y ejecutable**.
 
+> **¿Primera vez? Empieza por [SETUP.md](SETUP.md)** — checklist de ~10 min (Windows y Mac/Linux) para dejar todo listo antes del día 1.
+
 ## Cómo empezar
 
 1. Clona el repo:
