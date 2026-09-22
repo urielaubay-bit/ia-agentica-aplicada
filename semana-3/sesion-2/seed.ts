@@ -1,10 +1,11 @@
 import Database from "better-sqlite3";
-const db = new Database("ventas.db");
+const db = new Database("banco.db");
 db.exec(`
-  CREATE TABLE IF NOT EXISTS ventas (id INTEGER PRIMARY KEY, canal TEXT, mes TEXT, monto INTEGER);
-  DELETE FROM ventas;
-  INSERT INTO ventas (canal, mes, monto) VALUES
-   ('email','2026-07',95000), ('paid_search','2026-07',128000),
-   ('organic','2026-07',110000), ('email','2026-06',88000);
+  CREATE TABLE IF NOT EXISTS movimientos (id INTEGER PRIMARY KEY, cuenta TEXT, mes TEXT, tipo TEXT, monto INTEGER);
+  DELETE FROM movimientos;
+  INSERT INTO movimientos (cuenta, mes, tipo, monto) VALUES
+   ('CU-1001','2026-09','deposito',15000), ('CU-1001','2026-09','cargo',-3200),
+   ('CU-1001','2026-09','cargo',-850),      ('CU-1002','2026-09','deposito',500),
+   ('CU-1002','2026-09','retiro',-1200),    ('CU-1001','2026-08','deposito',15000);
 `);
-console.log("ventas.db lista");
+console.log("banco.db lista");

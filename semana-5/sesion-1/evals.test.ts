@@ -1,36 +1,36 @@
 import { describe, it, expect } from "vitest";
-import { executiveReport } from "./schemas.ts";
+import { reporteCuenta } from "./schemas.ts";
 
 // 1) Validez de schema (determinista, sin API)
 describe("validez de schema", () => {
   it("acepta una salida valida", () => {
     const salida = {
-      headline: "Ventas +14%",
-      summary: "Buen mes.",
-      highlights: ["revenue 461,475"],
-      risks: [],
-      recommendedActions: [{ action: "Escalar email", rationale: "mejor ROI", expectedImpact: "+ingresos" }],
+      titular: "María López",
+      cuenta: "CU-1001",
+      saldo: 18450,
+      alertas: ["cargo por revisar"],
+      recomendaciones: [{ accion: "Revisar cargo", motivo: "posible fraude", impacto: "protege al cliente" }],
     };
-    expect(executiveReport.safeParse(salida).success).toBe(true);
+    expect(reporteCuenta.safeParse(salida).success).toBe(true);
   });
   it("rechaza una salida invalida", () => {
-    expect(executiveReport.safeParse({ headline: 123 }).success).toBe(false);
+    expect(reporteCuenta.safeParse({ saldo: "mucho" }).success).toBe(false);
   });
 });
 
-// 2) Groundedness (determinista) — reemplaza miAgente por tu funcion real
+// 2) Groundedness (determinista) — reemplaza miAgente por tu funcion real de NeuronBank
 async function miAgente(pregunta: string): Promise<string> {
   const kb: Record<string, string> = {
-    horario: "Atendemos de 9 a 18 h.",
-    devoluciones: "Aceptamos devoluciones hasta 30 dias con ticket.",
+    spei: "Las transferencias SPEI son gratuitas hasta 100,000 por operacion.",
+    fraude: "Para reportar un cargo no reconocido, usa la app o llama al 800-NEURON las 24 horas.",
   };
   return kb[pregunta] ?? "No tengo esa informacion.";
 }
 
 describe("groundedness", () => {
   const casos = [
-    { pregunta: "horario", debeContener: "9 a 18" },
-    { pregunta: "devoluciones", debeContener: "30 dias" },
+    { pregunta: "spei", debeContener: "gratuitas" },
+    { pregunta: "fraude", debeContener: "800-NEURON" },
   ];
   for (const c of casos) {
     it(`responde con la fuente: ${c.pregunta}`, async () => {

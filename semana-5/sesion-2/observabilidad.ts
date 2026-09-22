@@ -5,8 +5,8 @@ import { generateText } from "ai";
 const t0 = Date.now();
 const { text, usage } = await generateText({
   model: anthropic("claude-sonnet-4-5"),
-  system: "Eres un asistente conciso.",
-  prompt: "Explica en una frase que es prompt caching.",
+  system: "Eres el asistente conciso de NeuronBank.",
+  prompt: "Explica en una frase que es una transferencia SPEI.",
 });
 const ms = Date.now() - t0;
 

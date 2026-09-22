@@ -4,20 +4,21 @@ import { z } from "zod";
 
 export const maxDuration = 30;
 
-const getKpiSummary = tool({
+// Tool de NeuronBank: trae los KPIs de una cuenta y se renderiza como tarjetas.
+const getKpisCuenta = tool({
   description:
-    "Trae los KPIs (revenue, sessions, conversions, conversion rate, AOV) para un canal y rango. Renderiza tarjetas de KPI.",
+    "Trae los KPIs de una cuenta de NeuronBank (saldo, movimientos del mes, alertas de fraude, limite disponible). Renderiza tarjetas.",
   inputSchema: z.object({
-    channel: z.string().optional().describe("Canal, ej 'email'. Omite para todos."),
-    range: z.string().optional().describe("Rango, ej 'last_30_days'."),
+    cuenta: z.string().optional().describe("Id de cuenta, ej 'CU-1001'. Omite para la principal."),
+    mes: z.string().optional().describe("Mes, ej '2026-09'."),
   }),
-  execute: async ({ channel = "all", range = "last_30_days" }) => ({
-    channel, range,
+  execute: async ({ cuenta = "CU-1001", mes = "2026-09" }) => ({
+    cuenta, mes,
     kpis: [
-      { label: "Revenue", value: "$461,475", delta: "+14%" },
-      { label: "Sessions", value: "196,547", delta: "+8%" },
-      { label: "Conversions", value: "5,458", delta: "+11%" },
-      { label: "Conv. rate", value: "2.78%", delta: "+0.3pp" },
+      { label: "Saldo", value: "$18,450", delta: "al corte de hoy" },
+      { label: "Movimientos (mes)", value: "12", delta: "3 salientes" },
+      { label: "Alertas de fraude", value: "1", delta: "cargo por revisar" },
+      { label: "Límite disponible", value: "$20,000", delta: "diario" },
     ],
   }),
 });
@@ -27,9 +28,9 @@ export async function POST(req: Request) {
   const result = streamText({
     model: anthropic("claude-sonnet-4-5"),
     system:
-      "Eres un copiloto de analitica. Cuando el usuario pida metricas, usa getKpiSummary. Interpreta los numeros brevemente en texto.",
+      "Eres el copiloto de NeuronBank. Cuando el usuario pida datos de una cuenta, usa getKpisCuenta. Interpreta los numeros brevemente en texto.",
     messages: convertToModelMessages(messages),
-    tools: { getKpiSummary },
+    tools: { getKpisCuenta },
     stopWhen: stepCountIs(5),
   });
   return result.toUIMessageStreamResponse();

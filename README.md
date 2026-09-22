@@ -42,7 +42,7 @@ Código de los laboratorios del curso **IA Agéntica Aplicada** de NeuronProcess
 
 | Semana | Sesión 1 | Sesión 2 |
 |---|---|---|
-| 1 · Fundamentos | Loop agéntico + tool tipada | Structured output + tu dominio |
+| 1 · Fundamentos | Loop agéntico + tool tipada | Structured output + agente NeuronBank |
 | 2 · UI generativa | Streaming (Next.js) | UI generativa (componentes) |
 | 3 · MCP + guardrails | MCP server + tool | Guardrails + scoping por rol |
 | 4 · Telegram + RAG | RAG local (embeddings) | Bot de Telegram + allowlist |

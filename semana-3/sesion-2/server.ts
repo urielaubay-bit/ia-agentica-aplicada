@@ -3,28 +3,29 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import Database from "better-sqlite3";
 import { z } from "zod";
 
-const db = new Database("ventas.db");
-const server = new McpServer({ name: "ventas-server", version: "1.0.0" });
+const db = new Database("banco.db");
+const server = new McpServer({ name: "neuronbank-server", version: "1.0.0" });
 
 // El rol del usuario define su alcance. En produccion viene de tu auth.
-const ROL = { canalPermitido: process.env.CANAL ?? "all" };
+// Ej. un cajero solo ve SU cuenta asignada; un analista ve todo (CUENTA vacio).
+const ROL = { cuentaPermitida: process.env.CUENTA ?? "all" };
 
-// Guardrail de scoping por rol forzado en el server (como resolveChannel en el POC).
-function resolveCanal(pedido?: string): string | undefined {
-  if (ROL.canalPermitido === "all") return pedido;
-  return ROL.canalPermitido; // forzado
+// Guardrail de scoping por rol FORZADO en el server (no se puede saltar desde el prompt).
+function resolveCuenta(pedida: string): string {
+  if (ROL.cuentaPermitida === "all") return pedida;
+  return ROL.cuentaPermitida; // forzado: ignora lo que pida el modelo
 }
 
 server.tool(
-  "ventasPorCanal",
-  "Trae las ventas de un mes por canal (email, paid_search, organic). Solo lectura.",
-  { mes: z.string().describe("Mes, ej '2026-07'."), canal: z.string().optional() },
-  async ({ mes, canal }) => {
-    const canalFinal = resolveCanal(canal);
-    const rows = canalFinal && canalFinal !== "all"
-      ? db.prepare("SELECT canal, monto FROM ventas WHERE mes=? AND canal=?").all(mes, canalFinal)
-      : db.prepare("SELECT canal, monto FROM ventas WHERE mes=?").all(mes);
-    return { content: [{ type: "text", text: JSON.stringify(rows) }] };
+  "movimientosPorCuenta",
+  "Trae los movimientos de una cuenta de NeuronBank en un mes. Solo lectura.",
+  { cuenta: z.string().describe("Id de cuenta, ej 'CU-1001'."), mes: z.string().optional().describe("Mes, ej '2026-09'.") },
+  async ({ cuenta, mes }) => {
+    const cuentaFinal = resolveCuenta(cuenta);
+    const rows = mes
+      ? db.prepare("SELECT tipo, monto, mes FROM movimientos WHERE cuenta=? AND mes=?").all(cuentaFinal, mes)
+      : db.prepare("SELECT tipo, monto, mes FROM movimientos WHERE cuenta=?").all(cuentaFinal);
+    return { content: [{ type: "text", text: JSON.stringify({ cuenta: cuentaFinal, rows }) }] };
   },
 );
 

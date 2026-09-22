@@ -7,4 +7,4 @@
 npm install
 npm test
 ```
-Incluye validez de schema (determinista) y groundedness (determinista). El tercer tipo, LLM-as-judge, usa un modelo barato (ej. Haiku) para calificar 1 a 5. Regla: 5 evals que pasan antes de mostrar a un cliente. Reemplaza `miAgente` por tu agente real.
+Incluye validez de schema (`reporteCuenta`) y groundedness sobre la base de NeuronBank (comisión SPEI, reportar fraude). El tercer tipo, LLM-as-judge, usa un modelo barato (ej. Haiku) para calificar 1 a 5. Regla: 5 evals que pasan antes de pasar a producción. Reemplaza `miAgente` por tu agente real de NeuronBank.

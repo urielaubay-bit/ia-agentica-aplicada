@@ -7,4 +7,4 @@
 npm install
 npx tsx probar-rag.ts   # la 1a vez descarga el modelo de embeddings (~25MB)
 ```
-Pon tus propios documentos en `docs/*.txt`. En la Sesión 2 conectamos esto a un bot de Telegram.
+`docs/faq.txt` trae la base de conocimiento de NeuronBank (comisión SPEI, límites, crédito, fraude, horarios, tasas). En la Sesión 2 conectamos esto a un bot de Telegram.

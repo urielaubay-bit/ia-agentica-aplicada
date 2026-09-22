@@ -2,25 +2,28 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { generateObject } from "ai";
 import { z } from "zod";
 
-const recommendedAction = z.object({
-  action: z.string().describe("Accion concreta y especifica."),
-  rationale: z.string().describe("Por que, fundamentado en los datos."),
-  expectedImpact: z.string().describe("Impacto de negocio esperado."),
+// Schema canonico de NeuronBank: la MISMA forma que renderizas como UI en la Semana 2
+// y que evaluas con evals en la Semana 5.
+const recomendacion = z.object({
+  accion: z.string().describe("Accion concreta y especifica."),
+  motivo: z.string().describe("Por que, fundamentado en los datos de la cuenta."),
+  impacto: z.string().describe("Impacto esperado para el cliente o el banco."),
 });
 
-export const executiveReport = z.object({
-  headline: z.string().describe("Resultado en una linea."),
-  summary: z.string().describe("Resumen ejecutivo de 2-3 frases."),
-  highlights: z.array(z.string()).min(1).max(5),
-  risks: z.array(z.string()).max(4),
-  recommendedActions: z.array(recommendedAction).min(1).max(4),
+export const reporteCuenta = z.object({
+  titular: z.string().describe("Nombre del titular."),
+  cuenta: z.string().describe("Id de cuenta, ej 'CU-1001'."),
+  saldo: z.number().describe("Saldo actual."),
+  alertas: z.array(z.string()).max(4).describe("Riesgos o señales (fraude, saldo bajo, etc.)."),
+  recomendaciones: z.array(recomendacion).min(1).max(4),
 });
 
 const { object } = await generateObject({
   model: anthropic("claude-sonnet-4-5"),
-  schema: executiveReport,
+  schema: reporteCuenta,
   prompt:
-    "Ventas del mes: revenue 461,475 (+14% vs mes previo), conversion 2.78%. Genera un reporte ejecutivo.",
+    "Cuenta CU-1001 (titular María López, saldo 18450, límite diario 20000). Movimientos recientes: " +
+    "nómina +15000, pago tarjeta -3200, súper -850. Genera un reporte de cuenta con alertas y recomendaciones.",
 });
 
 console.log(JSON.stringify(object, null, 2));

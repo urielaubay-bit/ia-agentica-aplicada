@@ -8,4 +8,4 @@ npm install
 npm run dev
 ```
 
-Prueba: "Muéstrame los KPIs del último mes". El asistente transmite texto **y** renderiza las tarjetas de KPI (`kpi-cards.tsx`). Ese es el patrón de UI generativa: una tool por tipo de respuesta, un componente por tool.
+Prueba: "Muéstrame los KPIs de la cuenta CU-1001". El asistente transmite texto **y** renderiza las tarjetas de KPI de la cuenta (`kpi-cards.tsx`). Ese es el patrón de UI generativa: una tool por tipo de respuesta, un componente por tool.

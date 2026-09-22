@@ -19,5 +19,5 @@ npx tsx banca.ts
 - Valida la transferencia de 15,000 a CU-1002: **permitida** (hay fondos y está dentro del límite de 20,000), pero **requiere confirmación** por ser un monto alto y redondo. El agente NO la ejecuta: solo informa.
 - Al final imprime un JSON `resumenBancario` con `alertas` y `accionesSugeridas`.
 
-## Llévalo a tu dominio
-La estructura es la misma para cualquier vertical con reglas de negocio (seguros, salud, logística): tools de solo lectura + una tool de validación que impone las reglas en código + un resumen estructurado. El guardrail en código, no en el prompt, es lo que lo hace confiable.
+## El patrón que se repite en NeuronBank
+La misma estructura sostiene todo el agente de NeuronBank: tools de solo lectura + una tool de validación que impone las reglas de negocio en código + un resumen estructurado. El guardrail en código, no en el prompt, es lo que lo hace confiable — y es justo lo que endureces en la Semana 3 (MCP + guardrails) y llevas a producción en la Semana 5.

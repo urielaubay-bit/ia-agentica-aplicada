@@ -20,7 +20,7 @@ bot.on("text", async (ctx) => {
   const { text } = await generateText({
     model: anthropic("claude-sonnet-4-5"),
     system:
-      "Eres el asistente de la empresa. Responde SOLO con base en el contexto. Si no esta en el contexto, dilo con honestidad. Se breve y claro.\n<contexto>\n" +
+      "Eres el asistente de NeuronBank. Responde SOLO con base en el contexto. Si no esta en el contexto, dilo con honestidad. Se breve y claro.\n<contexto>\n" +
       contexto + "\n</contexto>",
     prompt: ctx.message.text,
   });

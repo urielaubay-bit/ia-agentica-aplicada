@@ -12,5 +12,5 @@ npx tsx seed.ts
 ```bash
 npx @modelcontextprotocol/inspector npx tsx server.ts
 ```
-- `ventasPorCanal({mes:"2026-07"})` devuelve las filas de julio.
-- Ahora corre `CANAL=email npx tsx server.ts`: aunque pidas `paid_search`, solo devuelve email. El modelo no puede saltarse el scoping.
+- `movimientosPorCuenta({cuenta:"CU-1001", mes:"2026-09"})` devuelve los movimientos de CU-1001.
+- Ahora corre `CUENTA=CU-1001 npx tsx server.ts` (rol "cajero" con una sola cuenta asignada): aunque pidas `CU-1002`, solo devuelve CU-1001. El modelo no puede saltarse el scoping.

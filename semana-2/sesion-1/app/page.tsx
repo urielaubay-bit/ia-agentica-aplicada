@@ -8,7 +8,7 @@ export default function Page() {
 
   return (
     <main style={{ maxWidth: 640, margin: "0 auto", padding: 16 }}>
-      <h2>Mi agente (streaming)</h2>
+      <h2>Copiloto NeuronBank (streaming)</h2>
       {messages.map((m) => (
         <div key={m.id} style={{ marginBottom: 12 }}>
           <b>{m.role === "user" ? "Tu" : "Asistente"}:</b>
@@ -18,7 +18,7 @@ export default function Page() {
       <form onSubmit={(e) => { e.preventDefault(); if (input.trim()) { sendMessage({ text: input }); setInput(""); } }}>
         <input style={{ width: "100%", padding: 8 }} value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Escribe un mensaje..." />
+          placeholder="Ej: ¿cuál es el saldo de CU-1001?" />
       </form>
       {status === "streaming" && <p style={{ color: "#888", fontSize: 12 }}>escribiendo...</p>}
     </main>
