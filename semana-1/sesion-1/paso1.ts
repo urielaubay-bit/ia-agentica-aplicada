@@ -5,7 +5,7 @@ const model = anthropic("claude-sonnet-4-5"); // usa el Sonnet más reciente
 
 const { text } = await generateText({
   model,
-  system: "Eres un asistente conciso y directo.",
-  prompt: "¿Cuánto es 234 * 19?",
+  system: "Eres un asistente",
+  prompt: "¿el paquete generateText de quien es?",
 });
 console.log(text);
