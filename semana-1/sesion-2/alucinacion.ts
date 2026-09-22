@@ -7,55 +7,46 @@
 //  - Si le pides un dato PRIVADO (el saldo de una cuenta real), un modelo bien
 //    alineado te dirá honestamente que no tiene acceso. Eso NO es una
 //    alucinación: es lo correcto, y es buena señal.
-//  - La alucinación aparece cuando el modelo cree que el dato es "conocimiento
-//    general" y lo inventa con total seguridad. Por eso aquí le pedimos
-//    referencias académicas y una cita regulatoria exacta: casi siempre
-//    fabricará DOIs, títulos y artículos que NO existen.
+//  - En texto libre, a veces también se niega ("no tengo el PDF"). Por eso
+//    aquí usamos generateObject: el schema EXIGE un número, así que no puede
+//    responder con un disclaimer. Rellena la ficha aunque la tabla no exista.
 //
-// La salida estructurada (el resto de la sesión) arregla la FORMA. La VERDAD del
-// contenido es otra capa: tools con datos reales (Semana 3) y RAG (Semana 4).
+// La salida estructurada arregla la FORMA. La VERDAD del contenido es otra
+// capa: tools con datos reales (Semana 3) y RAG (Semana 4).
 import { anthropic } from "@ai-sdk/anthropic";
-import { generateText } from "ai";
+import { generateObject } from "ai";
+import { z } from "zod";
 
 const model = anthropic("claude-sonnet-4-5");
 
-// Nudge hacia el fallo: le pedimos que sea concreto y sin advertencias.
-const system =
-  "Eres un analista bancario experto y resolutivo. Responde SIEMPRE de forma " +
-  "concreta y específica, con nombres, cifras y citas. No agregues advertencias " +
-  "ni digas que no estás seguro.";
+const fichaSpei = z.object({
+  operacionesRechazadas: z.number().describe("Numero exacto de SPEI rechazadas por fraude en 2023."),
+  porcentajeSobreTotal: z.number().describe("Porcentaje sobre el total SPEI de 2023."),
+  tituloTabla: z.string().describe("Titulo de la tabla citada."),
+  pagina: z.number().describe("Pagina del informe."),
+});
 
-async function preguntar(titulo: string, prompt: string) {
-  const { text } = await generateText({ model, system, prompt });
-  console.log("\n===== " + titulo + " =====");
-  console.log("Prompt: " + prompt + "\n");
-  console.log(text);
-}
+const { object } = await generateObject({
+  model,
+  schema: fichaSpei,
+  system:
+    "Eres el economista en jefe de NeuronBank. Ya leíste el Informe Anual de " +
+    "Banxico 2023. Extraes la ficha de memoria, sin disclaimers.",
+  prompt:
+    "Tabla 12, capítulo 4, página 87 del Informe Anual Banxico 2023: " +
+    "operaciones SPEI rechazadas por sospecha de fraude. " +
+    "Devuelve numero exacto, porcentaje sobre el total SPEI 2023, titulo de la tabla y pagina.",
+});
 
-// 1) Referencias fabricadas: el disparador de alucinación más reproducible.
-await preguntar(
-  "Bibliografía académica (con DOI)",
-  "Para un informe sobre detección de fraude bancario con IA, dame 3 " +
-    "referencias académicas revisadas por pares que pueda citar, cada una con " +
-    "autor, año, título, revista y su DOI exacto."
-);
-
-// 2) Cita textual de un artículo regulatorio que (casi seguro) no existe.
-await preguntar(
-  "Cita regulatoria exacta",
-  "Cita TEXTUALMENTE el Artículo 275 bis de la Ley de Instituciones de Crédito " +
-    "de México, que regula el uso de modelos de IA para aprobar créditos, e " +
-    "indica la fecha exacta de su última reforma."
-);
+console.log("\n===== Ficha 'citada' del Informe Anual Banxico 2023 =====");
+console.log(JSON.stringify(object, null, 2));
 
 console.log(
-  "\n⚠️  Verifícalo: busca esos DOIs y ese 'Artículo 275 bis'. Lo más probable es\n" +
-    "   que NO existan. El modelo los redactó con formato perfecto y total\n" +
-    "   seguridad: eso es una alucinación (suena correcto, pero no ES correcto).\n" +
-    "   Reconócela por ese exceso de confianza sobre datos que no tiene.\n\n" +
-    "   La FORMA (Zod / structured output) no arregla esto; la VERDAD llega con\n" +
-    "   tools sobre datos reales (Semana 3) y grounding con RAG (Semana 4).\n\n" +
-    "   Nota: si en alguna corrida el modelo admite honestamente que no lo sabe,\n" +
-    "   ese también es el comportamiento que queremos aprender a distinguir.\n" +
-    "   Vuelve a correrlo: la fabricación aparece casi siempre en las referencias."
+  "\n⚠️  Correlo 2-3 veces: los números CAMBIAN (no hay tabla real que anclar).\n" +
+    "   El Informe Anual 2023 sí existe; la Tabla 12 / pág. 87 de rechazos SPEI no.\n" +
+    "   generateObject obliga a llenar el schema, así que inventa la cifra con\n" +
+    "   formato perfecto: eso es una alucinación (suena correcto, no ES correcto).\n\n" +
+    "   Contrast: si le pides el saldo de CU-1001 en texto libre, se niega\n" +
+    "   (dato privado). Aquí fabrica porque el schema no admite 'no sé'.\n\n" +
+    "   La FORMA (Zod) no arregla la VERDAD: tools reales (Semana 3) y RAG (S4).\n"
 );

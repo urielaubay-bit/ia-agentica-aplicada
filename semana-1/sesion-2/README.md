@@ -8,7 +8,7 @@ npm install
 ```
 
 ## Pasos
-- `npx tsx alucinacion.ts` — arranca viendo el problema: un analista de banca SIN tools fabrica referencias académicas (con DOI) y una cita regulatoria que no existen, con total seguridad (una alucinación). Verifícalos y comprueba que son falsos.
+- `npx tsx alucinacion.ts` — arranca viendo el problema: `generateObject` obliga a llenar una ficha (SPEI rechazadas, %) “citada” del Informe Anual Banxico 2023. Correlo dos veces: los números cambian porque la tabla no existe.
 - `npx tsx paso4.ts` — reporte ejecutivo validado (5 claves).
 - `tu-dominio.ts` — plantilla: define TU tool + TU schema y corre tu agente baseline.
 
