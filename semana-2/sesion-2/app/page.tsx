@@ -1,34 +1,38 @@
-'use client';
-import { useChat } from "@ai-sdk/react";
-import { useState } from "react";
-import { KpiCards } from "./kpi-cards";
+import { resumenPortafolio, todasLasVistas, seriesCuentas } from "./api/chat/cuentas";
+import { DashboardProvider } from "./components/dashboard-provider";
+import { Dashboard } from "./components/dashboard";
+import { Copilot } from "./components/copilot";
 
+// Shell estilo Pulse (Rakuten): header + dos columnas. Izquierda: el dashboard
+// del portafolio (se ve al cargar y el copiloto puede enfocarlo). Derecha: el
+// copiloto, fijo como una sidebar. Los datos se calculan en el servidor y se
+// pasan al provider cliente, que guarda que cuenta esta enfocada.
 export default function Page() {
-  const { messages, sendMessage, status } = useChat();
-  const [input, setInput] = useState("");
+  const portafolio = resumenPortafolio();
+  const vistas = todasLasVistas();
+  const series = seriesCuentas();
 
   return (
-    <main style={{ maxWidth: 640, margin: "0 auto", padding: 16 }}>
-      <h2>Copiloto NeuronBank (UI generativa)</h2>
-      {messages.map((m) => (
-        <div key={m.id} style={{ marginBottom: 12 }}>
-          <b>{m.role === "user" ? "Tu" : "Asistente"}:</b>
-          {m.parts.map((part, i) => {
-            if (part.type === "text") return <p key={i}>{part.text}</p>;
-            if (part.type === "tool-getKpisCuenta" && part.state === "output-available") {
-              const d = part.output as any;
-              return <KpiCards key={i} kpis={d.kpis} caption={`${d.cuenta} · ${d.mes}`} />;
-            }
-            return null;
-          })}
+    <div className="shell">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">NB</span>
+          <span className="brand-name">NeuronBank</span>
+          <span className="brand-sub">Panel</span>
         </div>
-      ))}
-      <form onSubmit={(e) => { e.preventDefault(); if (input.trim()) { sendMessage({ text: input }); setInput(""); } }}>
-        <input style={{ width: "100%", padding: 8 }} value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Muéstrame los KPIs de la cuenta CU-1001" />
-      </form>
-      {status === "streaming" && <p style={{ color: "#888", fontSize: 12 }}>escribiendo...</p>}
-    </main>
+        <span className="card-sub">Semana 2 · Sesion 2 · UI generativa</span>
+      </header>
+
+      <DashboardProvider portafolio={portafolio} vistas={vistas} series={series}>
+        <div className="grid">
+          <main className="col-main">
+            <Dashboard />
+          </main>
+          <aside className="col-aside">
+            <Copilot />
+          </aside>
+        </div>
+      </DashboardProvider>
+    </div>
   );
 }
