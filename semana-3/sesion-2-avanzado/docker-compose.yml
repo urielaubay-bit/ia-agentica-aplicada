@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16
+    container_name: neuronbank-db
+    environment:
+      POSTGRES_USER: neuron
+      POSTGRES_PASSWORD: neuron
+      POSTGRES_DB: neuronbank
+    ports:
+      - "5432:5432"
+    volumes:
+      # schema.sql runs automatically the first time the volume is created.
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+      - neuronbank-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neuron -d neuronbank"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  neuronbank-data:
