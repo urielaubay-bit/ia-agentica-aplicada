@@ -38,64 +38,73 @@ Postgres (Docker): neuronbank (clientes, cuentas, movimientos)
 
 ## Práctica (90 min)
 
-### 1. Levanta Postgres (Docker)
+> **Único requisito: Docker.** Nada de Node, Python, pip ni compiladores en tu máquina.
 
+### 1. Pon tu API key (una vez)
+
+Crea un archivo `.env` en esta carpeta con tu llave de Anthropic:
 ```bash
 cd semana-3/sesion-2-avanzado
-docker compose up -d        # crea la BD y corre db/schema.sql (seed) la 1a vez
-docker compose ps           # 'healthy' cuando esté listo
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
 ```
-**Resultado esperado:** el contenedor `neuronbank-db` queda `healthy` en el puerto 5432.
 
-### 2. Arranca el MCP server (Python / FastMCP)
+### 2. Levanta el backend (Postgres + MCP server)
 
 ```bash
-cd server
-python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env         # DATABASE_URL ya apunta al Postgres de Docker
-python server.py             # HTTP en http://localhost:8000/mcp
+docker compose up -d --build
+docker compose ps            # 'db' healthy y 'mcp' arriba
 ```
-**Resultado esperado:** el server queda escuchando; verás el log de FastMCP.
+La primera vez construye las imágenes, crea la BD y corre el seed (`db/schema.sql`).
+**Resultado esperado:** Postgres `healthy` y el MCP server escuchando en `http://localhost:8000/mcp`.
 
-### 3. Pruébalo en el Inspector
+### 3. Corre el agente
 
+```bash
+docker compose run --rm agent "¿Cuál es el saldo de CU-1001 y sus movimientos de septiembre de 2026?"
+# o la pregunta por defecto:
+docker compose run --rm agent
+```
+**Resultado esperado:** el agente lista las tools, muestra cuáles llamó
+(ej `saldo_cuenta`, `movimientos_por_cuenta`) y responde con los datos reales de Postgres.
+
+### 4. (Opcional) Inspecciona las tools a mano
+
+Si tienes Node, abre el Inspector y conéctate al server que ya corre:
 ```bash
 npx @modelcontextprotocol/inspector@0.15.0
 ```
-En el Inspector: Transport **Streamable HTTP**, URL `http://localhost:8000/mcp`, **Connect** →
-pestaña **Tools** → `saldo_cuenta({ cuenta: "CU-1001" })`.
-**Resultado esperado:** `{ "cuenta": "CU-1001", "saldo": 25950 }`.
+Transport **Streamable HTTP**, URL `http://localhost:8000/mcp`, **Connect** → pestaña **Tools** →
+`saldo_cuenta({ cuenta: "CU-1001" })` → **Resultado esperado:** `{ "cuenta": "CU-1001", "saldo": 25950 }`.
 
-### 4. El agente que usa el server
+### Prueba el guardrail (scoping por rol)
+
+Reinicia el MCP server como "cajero" y verás que el agente **no puede** salirse de su cuenta:
+```bash
+echo "CUENTA=CU-1001" >> .env       # rol cajero: forzado a CU-1001
+docker compose up -d mcp            # reinicia el server con el nuevo rol
+docker compose run --rm agent "Dame los movimientos de CU-1002"
+```
+Aunque pidas `CU-1002`, el server fuerza `CU-1001`. El scoping vive en el server, no en el prompt.
+(Quita la línea `CUENTA` del `.env` y repite `docker compose up -d mcp` para volver a "analista".)
+
+### Apagar
 
 ```bash
-cd ../agent
-npm install
-cp .env.example .env         # pon tu ANTHROPIC_API_KEY
-npm run agent                # pregunta por defecto sobre CU-1001
-# o con tu propia pregunta:
-npx tsx agent.ts "¿Qué cuenta tuvo el mayor depósito en septiembre?"
+docker compose down          # para todo (agrega -v para borrar también los datos de la BD)
 ```
-**Resultado esperado:** el agente lista las tools, muestra qué tools llamó (ej
-`saldo_cuenta`, `movimientos_por_cuenta`) y responde con los datos reales de Postgres.
 
-### Prueba el guardrail sobre el agente
+### Si editas el código
 
-Reinicia el server como "cajero" y verás que el agente **no puede** salirse de su cuenta:
-```bash
-# en la terminal del server:
-CUENTA=CU-1001 python server.py
-```
-Aunque le pidas al agente datos de `CU-1002`, el server fuerza `CU-1001`. El scoping
-vive en el server, no en el prompt.
+- `server.py` (tools nuevas): `docker compose restart mcp` (está montado como volumen).
+- `agent.ts`: `docker compose run --rm --build agent "..."` para reconstruir.
 
 ---
 
 ## Teoría (30 min): el "connector" y producción
 
-- **Cliente MCP del AI SDK (lo que usamos):** el agente, en tu máquina, se conecta a
-  `localhost:8000/mcp`. Funciona local, ideal para el lab.
+- **Cliente MCP del AI SDK (lo que usamos):** el agente se conecta por HTTP al MCP server
+  (`http://mcp:8000/mcp` dentro de la red de Docker, o `localhost:8000` si lo corres fuera).
+  Funciona local, ideal para el lab.
 - **Connector nativo de Claude (`mcp_servers` en la API de Anthropic):** los servidores
   de Anthropic se conectan a TU server, así que necesita una **URL pública** (no alcanza
   `localhost`). Para usarlo: expón el server con un túnel (`ngrok http 8000`) o despliégalo,
@@ -109,11 +118,11 @@ vive en el server, no en el prompt.
 
 | Síntoma | Solución |
 |---|---|
-| `docker compose` falla | Instala Docker Desktop y ábrelo; reintenta `docker compose up -d`. |
-| El server no conecta a la BD | ¿`docker compose ps` dice `healthy`? Revisa `DATABASE_URL` en `.env`. |
-| El Inspector no lista tools | ¿El server imprime que escucha en :8000? Prueba la URL `http://localhost:8000/mcp`. |
-| El agente falla con credenciales | Falta `ANTHROPIC_API_KEY` en `agent/.env`. |
-| Errores de tipos/imports del AI SDK | Versiones probadas: `ai@7`, `@ai-sdk/anthropic@4`, `@ai-sdk/mcp@2` (deben ser de la misma generación). |
+| `docker compose` falla | Instala **Docker Desktop** y ábrelo antes de correr los comandos. |
+| `mcp` no arranca | ¿`docker compose ps` dice `db` healthy? El server espera a que Postgres esté listo; reintenta `docker compose up -d`. |
+| El agente falla con credenciales | Falta `ANTHROPIC_API_KEY` en el `.env` de esta carpeta. |
+| El Inspector no lista tools | ¿`docker compose ps` muestra `mcp` arriba? Prueba la URL `http://localhost:8000/mcp`. |
+| Cambié `server.py` y no pasa nada | `docker compose restart mcp` (el código está montado como volumen). |
 
 ## Checklist
 - [ ] Postgres corriendo con el seed de NeuronBank
