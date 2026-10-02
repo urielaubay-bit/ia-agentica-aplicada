@@ -1,3 +1,11 @@
+# Todo el lab en Docker: Postgres + MCP server + agente.
+# Solo necesitas Docker (ni Node, ni Python, ni compiladores).
+#
+#   docker compose up -d --build                         # Postgres + MCP server
+#   docker compose run --rm agent "tu pregunta aquí"     # el agente
+#
+# La API key va en un archivo .env en esta carpeta:  ANTHROPIC_API_KEY=sk-ant-...
+
 services:
   db:
     image: postgres:16
@@ -9,7 +17,6 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      # schema.sql runs automatically the first time the volume is created.
       - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
       - neuronbank-data:/var/lib/postgresql/data
     healthcheck:
@@ -17,6 +24,33 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  mcp:
+    build: ./server
+    container_name: neuronbank-mcp
+    environment:
+      # Dentro de la red de compose, Postgres es el host 'db' (no localhost).
+      DATABASE_URL: postgresql://neuron:neuron@db:5432/neuronbank
+      PORT: 8000
+      CUENTA: ${CUENTA:-}        # vacío = analista; CU-1001 = rol "cajero"
+    ports:
+      - "8000:8000"             # el Inspector se conecta a http://localhost:8000/mcp
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./server:/app           # editar server.py se refleja (docker compose restart mcp)
+
+  agent:
+    build: ./agent
+    profiles: ["agent"]         # no arranca con 'up'; se corre bajo demanda
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Dentro de la red de compose, el MCP server es el host 'mcp'.
+      MCP_URL: http://mcp:8000/mcp
+      AGENT_MODEL: ${AGENT_MODEL:-claude-sonnet-5-5}
+    depends_on:
+      - mcp
 
 volumes:
   neuronbank-data:
