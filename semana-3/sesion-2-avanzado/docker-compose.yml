@@ -33,6 +33,10 @@ services:
       DATABASE_URL: postgresql://neuron:neuron@db:5432/neuronbank
       PORT: 8000
       CUENTA: ${CUENTA:-}        # vacío = analista; CU-1001 = rol "cajero"
+      # Integración de correo: apunta a Mailpit (sin credenciales, para el lab).
+      SMTP_HOST: mail
+      SMTP_PORT: 1025
+      MAIL_FROM: NeuronBank <neuronbank@example.com>
     ports:
       - "8000:8000"             # el Inspector se conecta a http://localhost:8000/mcp
     depends_on:
@@ -40,6 +44,13 @@ services:
         condition: service_healthy
     volumes:
       - ./server:/app           # editar server.py se refleja (docker compose restart mcp)
+
+  mail:
+    image: axllent/mailpit:latest
+    container_name: neuronbank-mail
+    ports:
+      - "8025:8025"             # UI web: abre http://localhost:8025 para ver los correos
+      - "1025:1025"             # SMTP (sin auth) al que envía la tool
 
   agent:
     build: ./agent

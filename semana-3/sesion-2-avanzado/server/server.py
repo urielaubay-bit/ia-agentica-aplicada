@@ -15,6 +15,8 @@ Config por entorno (nunca en el código):
 from __future__ import annotations
 
 import os
+import smtplib
+from email.message import EmailMessage
 
 try:
     from dotenv import load_dotenv
@@ -101,6 +103,36 @@ def resumen_por_tipo(cuenta: str, mes: str | None = None) -> dict:
             (c,),
         )
     return {"cuenta": c, "por_tipo": rows}
+
+
+# ── Integración nueva: enviar un reporte por correo ─────────────────────────
+# Patrón para añadir una tool con una integración externa: una función con
+# @mcp.tool que habla con otro sistema (aquí, un servidor SMTP). En el lab el
+# SMTP es Mailpit (sin credenciales); los correos se ven en http://localhost:8025.
+# Para correo real, cambia SMTP_HOST/SMTP_PORT (ej. smtp.gmail.com:587 con auth).
+@mcp.tool
+def enviar_reporte_por_correo(cuenta: str, email: str) -> dict:
+    """Envía por correo un reporte con el saldo de una cuenta de NeuronBank.
+    Usa el SMTP configurado (Mailpit en el lab). Devuelve dónde ver el correo."""
+    c = resolve_cuenta(cuenta)
+    rows = query("SELECT COALESCE(SUM(monto), 0) AS saldo FROM movimientos WHERE cuenta = %s", (c,))
+    saldo = rows[0]["saldo"]
+
+    msg = EmailMessage()
+    msg["From"] = os.environ.get("MAIL_FROM", "neuronbank@example.com")
+    msg["To"] = email
+    msg["Subject"] = f"Reporte NeuronBank — {c}"
+    msg.set_content(f"Hola,\n\nEl saldo de la cuenta {c} es {saldo}.\n\nNeuronBank")
+
+    host = os.environ.get("SMTP_HOST", "mail")
+    port = int(os.environ.get("SMTP_PORT", "1025"))
+    with smtplib.SMTP(host, port, timeout=10) as smtp:
+        if os.environ.get("SMTP_USER"):  # correo real (ej. Gmail): STARTTLS + login
+            smtp.starttls()
+            smtp.login(os.environ["SMTP_USER"], os.environ.get("SMTP_PASS", ""))
+        smtp.send_message(msg)
+
+    return {"ok": True, "cuenta": c, "to": email, "saldo": saldo, "ver_en": "http://localhost:8025"}
 
 
 if __name__ == "__main__":
