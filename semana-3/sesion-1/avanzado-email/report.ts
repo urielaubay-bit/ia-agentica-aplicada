@@ -103,8 +103,55 @@ async function makeTransport() {
   };
 }
 
+// Which transport to use. Explicit EMAIL_TRANSPORT wins; otherwise inferred.
+function pickMode(): "ses" | "smtp" | "ethereal" {
+  const t = process.env.EMAIL_TRANSPORT?.toLowerCase();
+  if (t === "ses" || t === "smtp" || t === "ethereal") return t;
+  if (process.env.SES_FROM || process.env.EMAIL_TRANSPORT === "ses") return "ses";
+  if (process.env.SMTP_HOST) return "smtp";
+  return "ethereal";
+}
+
+// Real delivery via Amazon SES using the AWS SDK + IAM (no SMTP credentials).
+// Credentials come from the default AWS chain (env vars, shared profile, or role).
+// The `from` must be an SES-verified identity; SES_FROM overrides the default.
+async function sendViaSES(r: Reporte, email: string) {
+  const region = process.env.AWS_REGION ?? "us-east-1";
+  const from = process.env.SES_FROM ?? "NeuronBank <contact@neuronprocess.com>";
+  // Lazy import so Ethereal/SMTP users don't need the AWS SDK installed.
+  const { SESv2Client, SendEmailCommand } = await import("@aws-sdk/client-sesv2");
+  const client = new SESv2Client({ region });
+  const out = await client.send(
+    new SendEmailCommand({
+      FromEmailAddress: from,
+      Destination: { ToAddresses: [email] },
+      Content: {
+        Simple: {
+          Subject: { Data: r.subject, Charset: "UTF-8" },
+          Body: {
+            Html: { Data: r.html, Charset: "UTF-8" },
+            Text: { Data: r.text, Charset: "UTF-8" },
+          },
+        },
+      },
+    }),
+  );
+  return {
+    ok: true,
+    cuenta: r.cuenta,
+    to: email,
+    saldo: r.saldo,
+    messageId: out.MessageId,
+    previewUrl: null,
+    mode: `ses (${region})`,
+  };
+}
+
 export async function enviarReporte(cuenta: string, email: string) {
   const r = buildReporte(cuenta);
+  if (pickMode() === "ses") return sendViaSES(r, email);
+
+  // nodemailer path: real SMTP if SMTP_HOST is set, otherwise Ethereal.
   const { transporter, from, ethereal } = await makeTransport();
   const info = await transporter.sendMail({
     from,
