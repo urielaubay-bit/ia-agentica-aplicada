@@ -19,4 +19,20 @@ server.tool(
   },
 );
 
+// ── EJERCICIO: agrega tu segunda tool ───────────────────────────────────────
+// Usando la tool de arriba como modelo, implementa `saldoCuenta`: recibe
+// { cuenta } y devuelve el saldo (la suma de todos los montos de esa cuenta).
+// Pista SQL: SELECT SUM(monto) AS saldo FROM movimientos WHERE cuenta = ?
+// Pruébala en el inspector con { cuenta: "CU-1001" } (saldo esperado: 25950).
+//
+// server.tool(
+//   "saldoCuenta",
+//   "Devuelve el saldo (suma de montos) de una cuenta de NeuronBank. Solo lectura.",
+//   { cuenta: z.string().describe("Id de cuenta, ej 'CU-1001'.") },
+//   async ({ cuenta }) => {
+//     // TODO: consulta el saldo con un statement parametrizado y devuélvelo
+//     //       como texto JSON, igual que la tool de arriba.
+//   },
+// );
+
 await server.connect(new StdioServerTransport());
