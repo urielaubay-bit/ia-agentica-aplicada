@@ -6,14 +6,14 @@
     "agent": "tsx agent.ts"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.71",
-    "@ai-sdk/mcp": "^2.0.66",
-    "ai": "^7.0.127",
-    "dotenv": "^18.0.5"
+    "@ai-sdk/anthropic": "4.0.71",
+    "@ai-sdk/mcp": "2.0.66",
+    "ai": "7.0.127",
+    "dotenv": "18.0.5"
   },
   "devDependencies": {
-    "@types/node": "^20.14.0",
-    "tsx": "^4.19.0",
-    "typescript": "^5.5.0"
+    "@types/node": "20.19.43",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
   }
 }
