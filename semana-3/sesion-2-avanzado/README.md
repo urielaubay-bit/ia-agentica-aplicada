@@ -87,6 +87,34 @@ docker compose run --rm agent "Dame los movimientos de CU-1002"
 Aunque pidas `CU-1002`, el server fuerza `CU-1001`. El scoping vive en el server, no en el prompt.
 (Quita la línea `CUENTA` del `.env` y repite `docker compose up -d mcp` para volver a "analista".)
 
+### Una tool que es una integración: enviar el reporte por correo
+
+Una tool puede hablar con otro sistema. Ya incluimos la tool `enviar_reporte_por_correo`,
+que arma el reporte de saldo/movimientos y lo manda por **SMTP**. Por defecto entrega al
+buzón de prueba **Mailpit** (corre en Docker con `docker compose up`, **sin credenciales**).
+
+El agente **no se toca**: descubre la tool nueva al conectarse y la llama solo.
+
+```bash
+docker compose run --rm agent "Envía el reporte de saldo de CU-1001 a cliente@ejemplo.com"
+```
+**Resultado esperado:** el agente llama `enviar_reporte_por_correo` y el correo se envía de verdad.
+Ábrelo en el buzón:
+
+```
+http://localhost:8025
+```
+Esto funciona para todos, sin llaves ni servicios externos.
+
+**Correo real (opcional):** apunta el SMTP a tu proveedor con variables en el `.env` de esta
+carpeta y la misma tool entrega de verdad (reinicia con `docker compose up -d mcp`):
+```bash
+SMTP_HOST=smtp.gmail.com   SMTP_PORT=587   SMTP_USER=tu@gmail.com   SMTP_PASS=app_password
+```
+
+> **Tu turno:** añade otra tool a `server.py` (ej `clientes_por_tipo`), reinicia con
+> `docker compose restart mcp` y pídesela al agente.
+
 ### Apagar
 
 ```bash
@@ -123,9 +151,11 @@ docker compose down          # para todo (agrega -v para borrar también los dat
 | El agente falla con credenciales | Falta `ANTHROPIC_API_KEY` en el `.env` de esta carpeta. |
 | El Inspector no lista tools | ¿`docker compose ps` muestra `mcp` arriba? Prueba la URL `http://localhost:8000/mcp`. |
 | Cambié `server.py` y no pasa nada | `docker compose restart mcp` (el código está montado como volumen). |
+| El correo no llega a Mailpit | ¿`docker compose ps` muestra `mailpit` arriba? Ábrelo en `http://localhost:8025`. |
 
 ## Checklist
 - [ ] Postgres corriendo con el seed de NeuronBank
 - [ ] MCP server (FastMCP) en HTTP, probado en el Inspector
 - [ ] El agente descubre las tools y responde con datos reales
 - [ ] El guardrail `CUENTA` también limita al agente
+- [ ] Envié un reporte por correo y lo vi en Mailpit (`http://localhost:8025`)

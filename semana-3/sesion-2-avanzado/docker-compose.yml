@@ -1,10 +1,11 @@
 # Todo el lab en Docker: Postgres + MCP server + agente.
 # Solo necesitas Docker (ni Node, ni Python, ni compiladores).
 #
-#   docker compose up -d --build                         # Postgres + MCP server
+#   docker compose up -d --build                         # Postgres + MCP server + Mailpit
 #   docker compose run --rm agent "tu pregunta aquí"     # el agente
 #
 # La API key va en un archivo .env en esta carpeta:  ANTHROPIC_API_KEY=sk-ant-...
+# El buzón de prueba Mailpit queda en http://localhost:8025 (sin credenciales).
 
 services:
   db:
@@ -33,13 +34,29 @@ services:
       DATABASE_URL: postgresql://neuron:neuron@db:5432/neuronbank
       PORT: 8000
       CUENTA: ${CUENTA:-}        # vacío = analista; CU-1001 = rol "cajero"
+      # Integración de correo: por defecto al buzón de prueba Mailpit (host 'mailpit').
+      # Para correo real, define SMTP_* en el .env de esta carpeta (ver README).
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-reportes@neuronbank.mx}
     ports:
       - "8000:8000"             # el Inspector se conecta a http://localhost:8000/mcp
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     volumes:
       - ./server:/app           # editar server.py se refleja (docker compose restart mcp)
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: neuronbank-mailpit
+    ports:
+      - "8025:8025"             # UI web del buzón: http://localhost:8025
+      - "1025:1025"             # SMTP donde el MCP server entrega el correo
 
   agent:
     build: ./agent
