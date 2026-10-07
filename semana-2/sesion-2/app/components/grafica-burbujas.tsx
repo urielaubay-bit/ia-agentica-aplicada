@@ -23,7 +23,7 @@ export function GraficaBurbujas({ datos, caption }: { datos: SerieCuenta[]; capt
         <line x1={L} y1={T} x2={L} y2={H - B} stroke="var(--line)" />
         <line x1={L} y1={H - B} x2={W - R} y2={H - B} stroke="var(--line)" />
         <text x={L} y={H - 14} fontSize="11" fill="var(--muted)">Ingresos →</text>
-        <text x={14} y={T + 6} fontSize="11" fill="var(--muted)" transform={`rotate(-90 14 ${T + 6})`}>Egresos →</text>
+        <text x={-90} y={T+6} fontSize="11" fill="var(--muted)" transform={`rotate(-90 14 ${T + 6})`}>Egresos →</text>
 
         {datos.map((d) => (
           <g key={d.id}>

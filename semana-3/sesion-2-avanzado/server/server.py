@@ -11,6 +11,8 @@ Config por entorno (nunca en el código):
   - CUENTA       : scoping por rol (igual que la sesión 2). Vacío = analista
                    (ve todo); con valor = cajero (forzado a esa cuenta).
   - PORT         : puerto HTTP (default 8000).
+  - SMTP_*       : integración de correo (tool enviar_reporte_por_correo).
+                   Por defecto apunta al buzón de prueba Mailpit (sin credenciales).
 """
 from __future__ import annotations
 
@@ -37,6 +39,15 @@ pool = ConnectionPool(conninfo=DATABASE_URL, min_size=1, max_size=5, open=True)
 # Guardrail de scoping por rol, forzado en el server (no se salta desde el prompt).
 ROL_CUENTA = os.environ.get("CUENTA") or None  # None = analista; valor = cajero
 
+# Integración de correo. Por defecto apunta a Mailpit (buzón de prueba en Docker,
+# host 'mailpit', puerto 1025, sin credenciales). Para correo real, apunta estas
+# variables a tu proveedor en .env (ej Gmail: smtp.gmail.com:587 con USER/PASS).
+SMTP_HOST = os.environ.get("SMTP_HOST", "mailpit")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "1025"))
+SMTP_USER = os.environ.get("SMTP_USER") or None
+SMTP_PASS = os.environ.get("SMTP_PASS") or None
+SMTP_FROM = os.environ.get("SMTP_FROM", "reportes@neuronbank.mx")
+
 
 def resolve_cuenta(pedida: str) -> str:
     return ROL_CUENTA if ROL_CUENTA else pedida
@@ -48,6 +59,23 @@ def query(sql: str, params: tuple) -> list[dict]:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute(sql, params)
             return cur.fetchall()
+
+
+def cuenta_existe(cuenta: str) -> bool:
+    """¿La cuenta está dada de alta en NeuronBank? (tabla cuentas)."""
+    return bool(query("SELECT 1 FROM cuentas WHERE cuenta = %s", (cuenta,)))
+
+
+def cuenta_tiene_movimientos(cuenta: str, mes: str | None = None) -> bool:
+    """¿La cuenta tiene al menos un movimiento (opcionalmente en ese mes)?"""
+    if mes:
+        rows = query(
+            "SELECT 1 FROM movimientos WHERE cuenta = %s AND mes = %s LIMIT 1",
+            (cuenta, mes),
+        )
+    else:
+        rows = query("SELECT 1 FROM movimientos WHERE cuenta = %s LIMIT 1", (cuenta,))
+    return bool(rows)
 
 
 mcp = FastMCP("neuronbank-postgres")
@@ -105,34 +133,81 @@ def resumen_por_tipo(cuenta: str, mes: str | None = None) -> dict:
     return {"cuenta": c, "por_tipo": rows}
 
 
-# ── Integración nueva: enviar un reporte por correo ─────────────────────────
-# Patrón para añadir una tool con una integración externa: una función con
-# @mcp.tool que habla con otro sistema (aquí, un servidor SMTP). En el lab el
-# SMTP es Mailpit (sin credenciales); los correos se ven en http://localhost:8025.
-# Para correo real, cambia SMTP_HOST/SMTP_PORT (ej. smtp.gmail.com:587 con auth).
+def _reporte_texto(cuenta: str, mes: str | None) -> str:
+    """Arma el cuerpo del reporte de saldo reutilizando los mismos SELECT que las
+    otras tools (una sola fuente de verdad: Postgres). Solo lectura."""
+    saldo = query("SELECT COALESCE(SUM(monto), 0) AS saldo FROM movimientos WHERE cuenta = %s", (cuenta,))[0]["saldo"]
+    if mes:
+        movs = query(
+            "SELECT fecha, tipo, monto, descripcion FROM movimientos "
+            "WHERE cuenta = %s AND mes = %s ORDER BY fecha",
+            (cuenta, mes),
+        )
+    else:
+        movs = query(
+            "SELECT fecha, tipo, monto, descripcion FROM movimientos "
+            "WHERE cuenta = %s ORDER BY fecha",
+            (cuenta,),
+        )
+    periodo = f" · mes {mes}" if mes else ""
+    lineas = [f"Reporte de NeuronBank — cuenta {cuenta}{periodo}", ""]
+    lineas.append(f"Saldo total: {saldo}")
+    lineas.append("")
+    lineas.append(f"Movimientos ({len(movs)}):")
+    for m in movs:
+        fecha = m["fecha"].isoformat() if m.get("fecha") is not None else "?"
+        lineas.append(f"  {fecha}  {m['tipo']:<9} {m['monto']:>8}  {m.get('descripcion') or ''}")
+    return "\n".join(lineas)
+
+
 @mcp.tool
-def enviar_reporte_por_correo(cuenta: str, email: str) -> dict:
-    """Envía por correo un reporte con el saldo de una cuenta de NeuronBank.
-    Usa el SMTP configurado (Mailpit en el lab). Devuelve dónde ver el correo."""
+def enviar_reporte_por_correo(cuenta: str, destinatario: str, mes: str | None = None) -> dict:
+    """Envía por correo el reporte de saldo y movimientos de una cuenta de NeuronBank.
+    Integración SMTP: por defecto entrega al buzón de prueba Mailpit (sin credenciales);
+    con variables SMTP_* en .env entrega a un proveedor real. Respeta el scoping por rol. No envies correo si la cuenta no existe en base de datos. y da un mensaje de error si no se puede enviar el correo."""
     c = resolve_cuenta(cuenta)
-    rows = query("SELECT COALESCE(SUM(monto), 0) AS saldo FROM movimientos WHERE cuenta = %s", (c,))
-    saldo = rows[0]["saldo"]
+
+    # Guardrail en el server (no en el prompt): no mandamos correos de cuentas
+    # inexistentes o sin movimientos. El agente no se puede saltar esto.
+    if not cuenta_existe(c):
+        return {
+            "cuenta": c,
+            "destinatario": destinatario,
+            "enviado": False,
+            "razon": f"La cuenta {c} no existe en NeuronBank.",
+        }
+    if not cuenta_tiene_movimientos(c, mes):
+        periodo = f" en el mes {mes}" if mes else ""
+        return {
+            "cuenta": c,
+            "destinatario": destinatario,
+            "enviado": False,
+            "razon": f"La cuenta {c} no tiene movimientos{periodo}; no hay nada que reportar.",
+        }
+
+    cuerpo = _reporte_texto(c, mes)
 
     msg = EmailMessage()
-    msg["From"] = os.environ.get("MAIL_FROM", "neuronbank@example.com")
-    msg["To"] = email
-    msg["Subject"] = f"Reporte NeuronBank — {c}"
-    msg.set_content(f"Hola,\n\nEl saldo de la cuenta {c} es {saldo}.\n\nNeuronBank")
+    periodo = f" ({mes})" if mes else ""
+    msg["Subject"] = f"Reporte de saldo — {c}{periodo}"
+    msg["From"] = SMTP_FROM
+    msg["To"] = destinatario
+    msg.set_content(cuerpo)
 
-    host = os.environ.get("SMTP_HOST", "mail")
-    port = int(os.environ.get("SMTP_PORT", "1025"))
-    with smtplib.SMTP(host, port, timeout=10) as smtp:
-        if os.environ.get("SMTP_USER"):  # correo real (ej. Gmail): STARTTLS + login
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as smtp:
+        # Con credenciales (proveedor real) negociamos TLS y autenticamos.
+        # Mailpit no pide nada: sin USER/PASS, enviamos tal cual.
+        if SMTP_USER and SMTP_PASS:
             smtp.starttls()
-            smtp.login(os.environ["SMTP_USER"], os.environ.get("SMTP_PASS", ""))
+            smtp.login(SMTP_USER, SMTP_PASS)
         smtp.send_message(msg)
 
-    return {"ok": True, "cuenta": c, "to": email, "saldo": saldo, "ver_en": "http://localhost:8025"}
+    return {
+        "cuenta": c,
+        "destinatario": destinatario,
+        "enviado": True,
+        "via": f"{SMTP_HOST}:{SMTP_PORT}",
+    }
 
 
 if __name__ == "__main__":
