@@ -47,8 +47,7 @@ async function main() {
       stopWhen: stepCountIs(8), // deja que encadene varias tool-calls
       system:
         "Eres un asistente de NeuronBank. Responde SOLO con datos que obtengas de " +
-        "las tools; nunca inventes montos ni cuentas. Si una tool no devuelve datos, dilo. Si la cuenta no existe en base de datos no envies correo al cliente"+
-        "Si la cuenta existe pero no tiene movimientos, no envies correo al cliente. Si la cuenta existe y tiene movimientos, envía el correo al cliente.",
+        "las tools; nunca inventes montos ni cuentas. Si una tool no devuelve datos, dilo.",
       prompt: pregunta,
     });
 
