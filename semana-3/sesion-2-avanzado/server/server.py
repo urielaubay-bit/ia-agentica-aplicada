@@ -61,6 +61,23 @@ def query(sql: str, params: tuple) -> list[dict]:
             return cur.fetchall()
 
 
+def cuenta_existe(cuenta: str) -> bool:
+    """¿La cuenta está dada de alta en NeuronBank? (tabla cuentas)."""
+    return bool(query("SELECT 1 FROM cuentas WHERE cuenta = %s", (cuenta,)))
+
+
+def cuenta_tiene_movimientos(cuenta: str, mes: str | None = None) -> bool:
+    """¿La cuenta tiene al menos un movimiento (opcionalmente en ese mes)?"""
+    if mes:
+        rows = query(
+            "SELECT 1 FROM movimientos WHERE cuenta = %s AND mes = %s LIMIT 1",
+            (cuenta, mes),
+        )
+    else:
+        rows = query("SELECT 1 FROM movimientos WHERE cuenta = %s LIMIT 1", (cuenta,))
+    return bool(rows)
+
+
 mcp = FastMCP("neuronbank-postgres")
 
 
@@ -147,8 +164,27 @@ def _reporte_texto(cuenta: str, mes: str | None) -> str:
 def enviar_reporte_por_correo(cuenta: str, destinatario: str, mes: str | None = None) -> dict:
     """Envía por correo el reporte de saldo y movimientos de una cuenta de NeuronBank.
     Integración SMTP: por defecto entrega al buzón de prueba Mailpit (sin credenciales);
-    con variables SMTP_* en .env entrega a un proveedor real. Respeta el scoping por rol."""
+    con variables SMTP_* en .env entrega a un proveedor real. Respeta el scoping por rol. No envies correo si la cuenta no existe en base de datos. y da un mensaje de error si no se puede enviar el correo."""
     c = resolve_cuenta(cuenta)
+
+    # Guardrail en el server (no en el prompt): no mandamos correos de cuentas
+    # inexistentes o sin movimientos. El agente no se puede saltar esto.
+    if not cuenta_existe(c):
+        return {
+            "cuenta": c,
+            "destinatario": destinatario,
+            "enviado": False,
+            "razon": f"La cuenta {c} no existe en NeuronBank.",
+        }
+    if not cuenta_tiene_movimientos(c, mes):
+        periodo = f" en el mes {mes}" if mes else ""
+        return {
+            "cuenta": c,
+            "destinatario": destinatario,
+            "enviado": False,
+            "razon": f"La cuenta {c} no tiene movimientos{periodo}; no hay nada que reportar.",
+        }
+
     cuerpo = _reporte_texto(c, mes)
 
     msg = EmailMessage()

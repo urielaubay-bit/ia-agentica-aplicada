@@ -25,14 +25,14 @@ server.tool(
 // Pista SQL: SELECT SUM(monto) AS saldo FROM movimientos WHERE cuenta = ?
 // Pruébala en el inspector con { cuenta: "CU-1001" } (saldo esperado: 25950).
 //
-// server.tool(
-//   "saldoCuenta",
-//   "Devuelve el saldo (suma de montos) de una cuenta de NeuronBank. Solo lectura.",
-//   { cuenta: z.string().describe("Id de cuenta, ej 'CU-1001'.") },
-//   async ({ cuenta }) => {
-//     // TODO: consulta el saldo con un statement parametrizado y devuélvelo
-//     //       como texto JSON, igual que la tool de arriba.
-//   },
-// );
+ server.tool(
+   "saldoCuenta",
+   "Devuelve el saldo (suma de montos) de una cuenta de NeuronBank. Solo lectura.",
+   { cuenta: z.string().describe("Id de cuenta, ej 'CU-1001'.") },
+   async ({ cuenta }) => {
+    const rows = db.prepare("SELECT SUM(monto) AS saldo FROM movimientos WHERE cuenta=?").get(cuenta);
+  return { content: [{ type: "text", text: JSON.stringify(rows) }] };
+   },
+ );
 
 await server.connect(new StdioServerTransport());
