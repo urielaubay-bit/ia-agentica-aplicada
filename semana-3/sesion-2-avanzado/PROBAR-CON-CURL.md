@@ -173,9 +173,85 @@ curl -s "$MCP_URL" "${H[@]}" -H "Mcp-Session-Id: $SESSION_ID" \
   -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"saldo_cuenta","arguments":{"cuenta":"CU-1001"}}}' | sed -n 's/^data: //p'
 ```
 
-> **Windows:** corre el script dentro de **Git Bash** o de **WSL**. En PowerShell puro
-> los arreglos de headers y las comillas no funcionan igual; lo más simple es pegar los
-> comandos `curl` uno por uno en Git Bash.
+---
+
+## Windows (sin Git Bash)
+
+El problema en Windows es capturar el `Mcp-Session-Id` en una variable: no hay
+`grep`/`awk`/`$(...)`. Aquí van las dos formas nativas.
+
+### PowerShell (recomendado)
+
+PowerShell lee el header directo, sin filtrar texto. La respuesta de las tools llega
+como SSE, así que nos quedamos con las líneas `data:`.
+
+```powershell
+$MCP_URL = "http://localhost:8000/mcp"
+$PROTO   = "2025-06-18"
+
+# 1. initialize y captura del Mcp-Session-Id en $SESSION_ID
+$initBody = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"curl","version":"1.0"}}}'
+$resp = Invoke-WebRequest -Uri $MCP_URL -Method Post -Body $initBody -UseBasicParsing `
+  -ContentType "application/json" `
+  -Headers @{ "Accept" = "application/json, text/event-stream" }
+
+$SESSION_ID = ($resp.Headers["Mcp-Session-Id"] | Select-Object -First 1)
+"Session: $SESSION_ID"
+
+# Headers reutilizables para el resto de las llamadas
+$H = @{
+  "Accept"               = "application/json, text/event-stream"
+  "MCP-Protocol-Version" = $PROTO
+  "Mcp-Session-Id"       = $SESSION_ID
+}
+
+# 2. notificación initialized (sin cuerpo de respuesta)
+Invoke-RestMethod -Uri $MCP_URL -Method Post -Headers $H -UseBasicParsing `
+  -ContentType "application/json" `
+  -Body '{"jsonrpc":"2.0","method":"notifications/initialized"}' | Out-Null
+
+# 3. tools/list  (filtramos las líneas data: del SSE)
+$r = Invoke-WebRequest -Uri $MCP_URL -Method Post -Headers $H -UseBasicParsing `
+  -ContentType "application/json" `
+  -Body '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+($r.Content -split "`n" | Where-Object { $_ -like "data:*" }) -replace '^data: ', ''
+
+# 4. tools/call: saldo de CU-1001
+$r = Invoke-WebRequest -Uri $MCP_URL -Method Post -Headers $H -UseBasicParsing `
+  -ContentType "application/json" `
+  -Body '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"saldo_cuenta","arguments":{"cuenta":"CU-1001"}}}'
+($r.Content -split "`n" | Where-Object { $_ -like "data:*" }) -replace '^data: ', ''
+```
+
+### CMD (`set SESSION_ID`)
+
+Windows 10/11 trae `curl.exe`. En CMD las comillas del JSON van escapadas con `\"` y la
+captura del header se hace con un `for /f`.
+
+```bat
+set MCP_URL=http://localhost:8000/mcp
+
+REM 1. initialize: guarda headers y cuerpo en archivos
+curl -s -D headers.txt -o init.json %MCP_URL% ^
+  -H "Content-Type: application/json" ^
+  -H "Accept: application/json, text/event-stream" ^
+  -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"curl\",\"version\":\"1.0\"}}}"
+
+REM 2. captura el Mcp-Session-Id en la variable SESSION_ID
+for /f "tokens=2 delims=: " %i in ('findstr /i "mcp-session-id" headers.txt') do set SESSION_ID=%i
+echo Session: %SESSION_ID%
+
+REM 3. tools/list (usa %SESSION_ID%)
+curl -s %MCP_URL% ^
+  -H "Content-Type: application/json" ^
+  -H "Accept: application/json, text/event-stream" ^
+  -H "MCP-Protocol-Version: 2025-06-18" ^
+  -H "Mcp-Session-Id: %SESSION_ID%" ^
+  -d "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}"
+```
+
+> En un archivo `.bat` duplica el `%` del `for`: usa `%%i` en vez de `%i`.
+> `curl.exe` responde en formato SSE (`data: {...}`); en CMD lo ves tal cual.
 
 ---
 
@@ -187,5 +263,7 @@ curl -s "$MCP_URL" "${H[@]}" -H "Mcp-Session-Id: $SESSION_ID" \
 | `406 Not Acceptable` | Falta `text/event-stream` en el header `Accept`. |
 | `400` / "missing session" | No mandaste el header `Mcp-Session-Id`, o se vació la variable. |
 | `-32600 invalid request` | Te saltaste el `initialize` o el `notifications/initialized`. |
-| La respuesta se ve rara (`event: ... data: ...`) | Es SSE, es normal. Filtra con `sed -n 's/^data: //p'`. |
-| `SESSION_ID` sale vacío | El `initialize` falló. Revisa `/tmp/mcp-init.txt` y que la URL sea `.../mcp`. |
+| La respuesta se ve rara (`event: ... data: ...`) | Es SSE, es normal. En Linux/Mac/Git Bash fíltrala con `sed -n 's/^data: //p'`; en PowerShell con el `-split`/`Where-Object` de arriba; en CMD la ves tal cual. |
+| `SESSION_ID` / `$SESSION_ID` sale vacío | El `initialize` falló. Revisa el cuerpo (`/tmp/mcp-init.txt` en Linux/Mac, `init.json` en CMD) y que la URL sea `.../mcp`. |
+| PowerShell: `Invoke-WebRequest` truena o se queda colgado | Usa `-UseBasicParsing` (ya incluido arriba) y confirma que Docker está arriba. En Windows 10/11 también puedes usar `curl.exe` (la variante de CMD) desde PowerShell. |
+| CMD: el JSON da error | Las comillas internas van escapadas con `\"`; copia el bloque de CMD tal cual, sin cambiar las comillas. |
