@@ -15,13 +15,22 @@ type Chunk = { text: string; vec: number[] };
 const index: Chunk[] = [];
 
 export async function ingest(dir = "docs") {
-  for (const file of readdirSync(dir)) {
+  // Solo archivos de texto; los binarios (PDF escaneado) entran por OCR -> ingestTexto.
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".txt"))) {
     const raw = readFileSync(join(dir, file), "utf8");
     for (const parrafo of raw.split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean)) {
       index.push({ text: parrafo, vec: await embed(parrafo) });
     }
   }
   console.log(`Indexados ${index.length} fragmentos.`);
+}
+
+// Mete texto crudo al indice: p.ej. lo que el agente OCR-eo de un PDF escaneado.
+// Una idea por linea = un fragmento.
+export async function ingestTexto(texto: string, fuente = "texto") {
+  const trozos = texto.split(/\n+/).map((s) => s.trim()).filter((s) => s.length > 2);
+  for (const t of trozos) index.push({ text: t, vec: await embed(t) });
+  console.log(`Indexados ${trozos.length} fragmentos de ${fuente} (OCR).`);
 }
 
 export async function retrieve(query: string, k = 3): Promise<string> {
