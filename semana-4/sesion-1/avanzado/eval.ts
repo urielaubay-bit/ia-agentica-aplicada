@@ -6,7 +6,7 @@ import { ingest, recuperar } from "./rag-avanzado.ts";
 
 // Cada caso: la pregunta y un texto que DEBE aparecer en el mejor fragmento.
 const casos = [
-  { q: "cuanto cuesta una transferencia SPEI?", esperado: "gratuitas" },
+  { q: "cuanto cuesta una transferencia SPEI menor a 100 mil?", esperado: "5 pesos" },
   { q: "cual es mi limite diario en CU-1001?", esperado: "20,000" },
   { q: "como reporto un cargo que no reconozco?", esperado: "Reportar" },
   { q: "que necesito para pedir un credito?", esperado: "ingresos" },

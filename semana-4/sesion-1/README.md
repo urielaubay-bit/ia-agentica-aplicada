@@ -32,5 +32,15 @@ npx tsx probar-rag.ts
 **Por qué importa:** los documentos reales son PDFs y escaneos. Un LLM con visión es
 el "OCR" más simple y robusto, y su salida alimenta el mismo pipeline de RAG.
 
+## Front-end con UI generativa (`web/`)
+El mismo RAG (embeddings locales + OCR del PDF escaneado) con una interfaz web,
+reusando el patrón de UI generativa de Semana 2 · Sesión 2 (`useChat`, una tool =
+un componente). Cada respuesta llega **citando los fragmentos** que recuperó, con
+su score y su fuente (FAQ o PDF-OCR). No reescribe el RAG: `web/app/rag-index.ts`
+importa tal cual `rag.ts` y `ocr.ts`. Ver `web/README.md`.
+```bash
+cd web && npm install && npm run dev   # http://localhost:3000
+```
+
 ## Reto avanzado
 Para ir más allá (búsqueda híbrida, abstención, evaluación), ver `avanzado/README.md`.

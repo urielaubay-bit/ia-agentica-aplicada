@@ -11,7 +11,10 @@ async function embed(text: string): Promise<number[]> {
 }
 const cosine = (a: number[], b: number[]) => a.reduce((s, x, i) => s + x * b[i], 0);
 
-type Chunk = { text: string; vec: number[] };
+// Cada fragmento guarda su texto, su vector y DE DONDE salio (su fuente). La
+// fuente es la clave para la UI: deja ver si la respuesta vino de la FAQ (.txt)
+// o del PDF escaneado que el agente OCR-eo.
+type Chunk = { text: string; vec: number[]; fuente: string };
 const index: Chunk[] = [];
 
 export async function ingest(dir = "docs") {
@@ -19,7 +22,7 @@ export async function ingest(dir = "docs") {
   for (const file of readdirSync(dir).filter((f) => f.endsWith(".txt"))) {
     const raw = readFileSync(join(dir, file), "utf8");
     for (const parrafo of raw.split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean)) {
-      index.push({ text: parrafo, vec: await embed(parrafo) });
+      index.push({ text: parrafo, vec: await embed(parrafo), fuente: file });
     }
   }
   console.log(`Indexados ${index.length} fragmentos.`);
@@ -29,16 +32,34 @@ export async function ingest(dir = "docs") {
 // Una idea por linea = un fragmento.
 export async function ingestTexto(texto: string, fuente = "texto") {
   const trozos = texto.split(/\n+/).map((s) => s.trim()).filter((s) => s.length > 2);
-  for (const t of trozos) index.push({ text: t, vec: await embed(t) });
+  for (const t of trozos) index.push({ text: t, vec: await embed(t), fuente });
   console.log(`Indexados ${trozos.length} fragmentos de ${fuente} (OCR).`);
 }
 
-export async function retrieve(query: string, k = 3): Promise<string> {
+// Recuperacion con provenance: devuelve los k fragmentos mas similares con su
+// score (0..1) y su fuente. Es lo que alimenta las tarjetas de "fuentes" de la
+// UI generativa: la respuesta se puede CITAR y se ve de donde salio cada dato.
+export type Fragmento = { text: string; score: number; fuente: string };
+
+export async function buscar(query: string, k = 3): Promise<Fragmento[]> {
   const q = await embed(query);
   return index
-    .map((c) => ({ c, score: cosine(q, c.vec) }))
+    .map((c) => ({ text: c.text, fuente: c.fuente, score: cosine(q, c.vec) }))
     .sort((a, b) => b.score - a.score)
-    .slice(0, k)
-    .map((r) => r.c.text)
-    .join("\n---\n");
+    .slice(0, k);
+}
+
+// retrieve() se mantiene igual que antes: el contexto como texto plano. Es lo
+// que usa la version de terminal (probar-rag.ts). Ahora se apoya en buscar().
+export async function retrieve(query: string, k = 3): Promise<string> {
+  const frags = await buscar(query, k);
+  return frags.map((f) => f.text).join("\n---\n");
+}
+
+// Estado del indice para la UI: cuantos fragmentos hay y de que fuente. Deja
+// mostrar "la FAQ aporto N, el PDF OCR-eado aporto M".
+export function estadoIndice() {
+  const porFuente: Record<string, number> = {};
+  for (const c of index) porFuente[c.fuente] = (porFuente[c.fuente] ?? 0) + 1;
+  return { total: index.length, porFuente };
 }
