@@ -26,7 +26,7 @@ const fueraDeAlcance = "cual es la capital de Francia?";
 // el cache, asi tunear UMBRAL/ALPHA es rapido y no vuelve a llamar al modelo.
 // Para re-OCR, borra el .ocr.txt. Necesita ANTHROPIC_API_KEY en .env.
 async function ocrDocs(dir = "docs") {
-  for (const pdf of readdirSync(dir).filter((f) => f.toLowerCase().endsWith(".pdf"))) {
+  for (const pdf of readdirSync(dir).filter((f) => /\.(pdf|png|jpe?g|webp|gif)$/i.test(f))) {
     const cache = join(dir, `${pdf}.ocr.txt`);
     let texto: string;
     if (existsSync(cache)) {

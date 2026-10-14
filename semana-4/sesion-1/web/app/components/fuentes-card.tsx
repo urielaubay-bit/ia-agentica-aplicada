@@ -23,12 +23,14 @@ export function FuentesCard({ fuentes, caption }: { fuentes: Fragmento[]; captio
       <div className="fuentes">
         {fuentes.map((f, i) => {
           const esPdf = /\.pdf$/i.test(f.fuente);
+          const esImg = /\.(png|jpe?g|webp|gif)$/i.test(f.fuente);
+          const ocr = esPdf || esImg;
           const pct = Math.max(0, Math.min(100, Math.round(f.score * 100)));
           return (
             <div key={i} className="fuente">
               <div className="fuente-top">
-                <span className={`badge ${esPdf ? "warn" : "ok"}`}>
-                  {esPdf ? "PDF escaneado · OCR" : "FAQ"}
+                <span className={`badge ${ocr ? "warn" : "ok"}`}>
+                  {esPdf ? "PDF escaneado · OCR" : esImg ? "Imagen · OCR" : "FAQ"}
                 </span>
                 <span className="card-sub tabular">sim {f.score.toFixed(2)}</span>
               </div>

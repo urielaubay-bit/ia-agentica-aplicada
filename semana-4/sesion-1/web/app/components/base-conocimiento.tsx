@@ -94,14 +94,19 @@ export function BaseConocimiento() {
         <div className="fuentes">
           {fuentes.length === 0 && <div className="card-sub">Indexando...</div>}
           {fuentes.map(([fuente, n]) => {
-            const esPdf = fuente.toLowerCase().endsWith(".pdf");
+            const lower = fuente.toLowerCase();
+            const esPdf = lower.endsWith(".pdf");
+            const esImg = /\.(png|jpe?g|webp|gif)$/.test(lower);
+            const ocr = esPdf || esImg; // ambos se leen con vision
             return (
               <div className="source" key={fuente}>
-                <span className="ic">{esPdf ? "🖨️" : "📄"}</span>
+                <span className="ic">{ocr ? "🖨️" : "📄"}</span>
                 <div className="meta">
                   <div className="name">
                     {fuente}{" "}
-                    <span className={`badge ${esPdf ? "warn" : "ok"}`}>{esPdf ? "PDF · OCR" : "texto"}</span>
+                    <span className={`badge ${ocr ? "warn" : "ok"}`}>
+                      {esPdf ? "PDF · OCR" : esImg ? "IMG · OCR" : "texto"}
+                    </span>
                   </div>
                   <div className="desc">{DESC[fuente] ?? "Documento indexado en la base."}</div>
                 </div>

@@ -42,8 +42,9 @@ async function construir() {
     estado = { fase: "indexando" };
     mod = await import("../../avanzado/solucion"); // aqui corre el top-level await (modelo)
     await mod.ingest(DOCS); // texto plano (faq.txt)
-    // Todos los PDF de docs/ entran por OCR (cacheado) al mismo indice.
-    for (const pdf of readdirSync(DOCS).filter((f) => f.toLowerCase().endsWith(".pdf"))) {
+    // Todos los PDF e imagenes de docs/ entran por OCR (cacheado) al mismo
+    // indice: un PDF escaneado y una foto de un documento son el mismo problema.
+    for (const pdf of readdirSync(DOCS).filter((f) => /\.(pdf|png|jpe?g|webp|gif)$/i.test(f))) {
       await mod.ingestTexto(await ocrCacheado(pdf), pdf);
     }
     estado = { fase: "listo" };
