@@ -5,16 +5,24 @@ parecidos... siempre. Si preguntas algo que **no** está en los documentos, igua
 te devuelve los 3 "menos malos", y un LLM los usará para inventar. Aquí conviertes
 ese recuperador ingenuo en uno con guardrails, y lo **mides**.
 
-Trabajas sobre la misma base de NeuronBank (`docs/faq.txt`). Corre todo desde
-`semana-4/sesion-1`:
+Trabajas sobre la misma base de NeuronBank (`docs/faq.txt`) más un **estado de
+cuenta en PDF** (`docs/estado-cuenta-neuronbank.pdf`, datos ficticios de demo).
+Corre todo desde `semana-4/sesion-1`:
 
 ```bash
 npm install                 # si no lo hiciste aún
-npx tsx avanzado/eval.ts    # mide tu recuperador (1a vez baja un modelo multilingüe ~120MB)
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env   # el agente OCR-ea los PDF
+npx tsx avanzado/eval.ts    # 1a vez: baja el modelo (~120MB) y OCR-ea los PDF
 ```
 
 `avanzado/eval.ts` es tu prueba: implementa los TODO de `avanzado/rag-avanzado.ts`
-hasta que diga **PASA**. Meta: **hit@3 ≥ 5/6** y **abstención correcta**.
+hasta que diga **PASA**. Meta: **hit@3 ≥ 6/7** y **abstención correcta**.
+
+> **OCR cacheado.** El eval OCR-ea cada PDF de `docs/` con el agente (Claude con
+> visión, `../ocr.ts`) y guarda el texto en `docs/<pdf>.ocr.txt`. Las corridas
+> siguientes reusan ese cache, así tunear `UMBRAL`/`ALPHA` es instantáneo. Para
+> re-OCR, borra el `.ocr.txt`. Los `.ocr.txt` están en `.gitignore` (no subas
+> datos personales del estado de cuenta).
 
 > **El modelo importa.** Este reto ya trae un modelo de embeddings *multilingüe*
 > (`paraphrase-multilingual-MiniLM-L12-v2`), no el inglés de `rag.ts`. Con el inglés,
@@ -41,10 +49,29 @@ uno rescata lo que el otro pierde. Pruébalo: la pregunta de `CU-1001` salta con
 léxico.
 
 ## Parte 3 — Mídelo y compáralo
-`eval.ts` ya corre 6 preguntas con su respuesta esperada + 1 pregunta fuera de
+`eval.ts` ya corre 7 preguntas con su respuesta esperada + 1 pregunta fuera de
 alcance que **debe** abstenerse. Ajusta `UMBRAL` y `ALPHA` hasta pasar. Luego, para
 sentir el salto, comenta la parte léxica (deja solo coseno) y vuelve a correr: vas
 a ver bajar el hit@3 y/o perderse la abstención.
+
+## Parte 4 — Documentos reales: OCR + chunking + dedup
+El caso 7 (*"saldo promedio del estado de cuenta"*) **solo** vive en el PDF del
+estado de cuenta, que el agente OCR-ea. Dos problemas reales de un documento de 8
+hojas, y cómo los resuelve la solución:
+
+- **Chunking con solapamiento.** Una idea por línea deja al dato clave
+  (`Saldo Promedio 13,812.21`) como un fragmento diminuto que pierde contra líneas
+  casi idénticas (`Saldo Promedio Gravable 0.00`) y contra un distractor de la FAQ
+  (`cuenta de ahorro paga 8%`). `ventanas()` agrupa líneas vecinas en ventanas de
+  ~360 caracteres con solape, así el saldo viaja con su contexto (`Saldo Anterior`,
+  `Saldo Final`) y se recupera con una pregunta natural.
+- **Dedup.** El encabezado (nombre, dirección) se repite en cada una de las 8
+  hojas; sin dedup esos fragmentos inundan el top-k. Un `Set` de textos ya vistos
+  los descarta.
+
+Compáralo: vuelve `ingestTexto` a una idea por línea (sin `ventanas()`) y verás caer
+ese caso aunque el OCR sea perfecto. **El OCR mete el dato al índice; el chunking
+decide si se puede recuperar.**
 
 ## Reto extra — Respuesta citada (previo a la Sesión 2)
 Con el AI SDK, redacta la respuesta **solo** con los fragmentos recuperados:

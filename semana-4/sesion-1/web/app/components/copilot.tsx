@@ -47,8 +47,16 @@ export function Copilot() {
       if (d?.error) return <p key={i} className="down">{d.error}</p>;
 
       if (name === "buscarEnBase") {
-        const caption = `top ${d.fuentes?.length ?? 0} · mejor sim ${Number(d.mejorScore ?? 0).toFixed(2)}`;
-        return <FuentesCard key={i} fuentes={d.fuentes} caption={caption} />;
+        const n = d.fuentes?.length ?? 0;
+        const caption = `top ${n} · mejor sim ${Number(d.mejorScore ?? 0).toFixed(2)}`;
+        // Fuentes colapsadas (estilo producto): la respuesta va primero y las
+        // "costuras" del RAG quedan a un clic. Transparencia bajo demanda.
+        return (
+          <details key={i} className="fuentes-toggle">
+            <summary>Ver fuentes ({n})</summary>
+            <FuentesCard fuentes={d.fuentes} caption={caption} />
+          </details>
+        );
       }
     }
     return null;
@@ -76,12 +84,19 @@ export function Copilot() {
           </div>
         )}
 
-        {messages.map((m) => (
-          <div key={m.id} className={`msg ${m.role}`}>
-            <div className="who">{m.role === "user" ? "Tu" : "Asistente"}</div>
-            {m.parts.map((part, i) => renderParte(part, i, m.role))}
-          </div>
-        ))}
+        {messages.map((m) => {
+          // Respuesta PRIMERO, luego las fuentes: el texto del asistente va antes
+          // que la tarjeta de la tool (que por streaming llega primero). Orden
+          // estable: texto (0), tool (1), resto (2).
+          const peso = (p: any) => (p.type === "text" ? 0 : String(p.type).startsWith("tool-") ? 1 : 2);
+          const ordenadas = m.parts.map((p, i) => ({ p, i })).sort((a, b) => peso(a.p) - peso(b.p));
+          return (
+            <div key={m.id} className={`msg ${m.role}`}>
+              <div className="who">{m.role === "user" ? "Tu" : "Asistente"}</div>
+              {ordenadas.map(({ p, i }) => renderParte(p, i, m.role))}
+            </div>
+          );
+        })}
 
         {status === "streaming" && <p className="typing">buscando y respondiendo...</p>}
       </div>

@@ -1,56 +1,70 @@
 # Semana 4 · Sesion 1 · RAG con UI generativa (front-end)
 
-El **mismo RAG** de la sesion (local, embeddings on-device, OCR del PDF escaneado),
-ahora con una interfaz web. Es el patron de UI generativa de **Semana 2 · Sesion 2**
-(`useChat`, una tool = un componente) aplicado a RAG: cada respuesta se dibuja
-**con sus fuentes**, citando los fragmentos que recupero del indice.
+RAG sobre **documentos reales** con interfaz web. Es el patron de UI generativa de
+**Semana 2 · Sesion 2** (`useChat`, una tool = un componente) aplicado a RAG: cada
+respuesta se dibuja **con sus fuentes**, citando los fragmentos que recupero del
+indice.
 
-No reescribe nada del RAG: `app/rag-index.ts` **importa tal cual** `../../rag.ts`
-(chunking + embeddings + recuperacion) y `../../ocr.ts` (el agente OCR-ea el PDF).
-La web solo los consume.
+Para poder preguntar **cualquier cosa** sobre un PDF real (un estado de cuenta de 8
+hojas), el front reusa el **recuperador avanzado** de la sesion
+(`../../avanzado/solucion.ts`): embeddings **multilingues** + busqueda **hibrida**
+(coseno + lexico) + **chunking por ventanas** + dedup + abstencion. El basico (pura
+similitud en ingles) no alcanza para una pregunta natural sobre ese PDF. El OCR lo
+hace el agente (`../../ocr.ts`).
 
 ## Correr
 ```bash
 cd semana-4/sesion-1          # primero instala el core (una vez)
 npm install
 cd web
-echo "ANTHROPIC_API_KEY=sk-ant-..." > .env.local   # Claude hace el OCR y responde
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env.local   # el agente OCR-ea; el copiloto responde
 npm install
 npm run dev                   # http://localhost:3000  (corre DESDE web/)
 ```
-La **primera** pregunta construye el indice una sola vez: baja el modelo de
-embeddings (~25MB) y el agente hace OCR del PDF escaneado. El panel izquierdo
-muestra ese avance ("indexando..." -> "listo: N fragmentos").
+La **primera** carga construye el indice una vez: baja el modelo multilingue
+(~120MB) y el agente OCR-ea cada PDF de `../docs/`. El **OCR se cachea** en
+`../docs/<pdf>.ocr.txt`; las siguientes cargas lo reusan (no re-OCR, no costo). El
+panel izquierdo muestra el avance ("indexando..." -> "listo: N fragmentos").
+
+> El key va en `web/.env.local` (esta app), no solo en `../.env`. Si ya existen los
+> `.ocr.txt`, el OCR no se vuelve a llamar; el key sigue haciendo falta para que el
+> copiloto responda.
 
 ## Que se ve
-- **Izquierda (Base de conocimiento):** el pipeline (chunking, OCR, embeddings),
-  las dos fuentes (`faq.txt` y el PDF escaneado `aviso-comisiones.pdf`) y el
-  estado del indice en vivo.
-- **Derecha (Copiloto RAG):** el chat. Cada respuesta se **fundamenta** solo en
-  los fragmentos recuperados y debajo se dibuja la tarjeta **Fragmentos
-  recuperados** con el score de similitud y una insignia de origen (FAQ o
-  PDF-OCR).
+- **Izquierda (Base de conocimiento):** el pipeline (OCR, chunking por ventanas,
+  embeddings, hibrido), las fuentes **listadas desde el indice** (`faq.txt`,
+  `aviso-comisiones.pdf`, `estado-cuenta-neuronbank.pdf`) con su conteo, y el estado en vivo.
+- **Derecha (Copiloto RAG):** el chat. Cada respuesta se **fundamenta** solo en los
+  fragmentos recuperados y debajo se dibuja la tarjeta **Fragmentos recuperados**
+  con el score y una insignia de origen (FAQ o PDF-OCR).
 
-Pruebalo con los chips:
-- *"Cuanto cuesta una SPEI menor a 100 mil?"* -> responde desde la **FAQ**.
-- *"Que es la cuenta Premium PR-2026?"* / *"SPEI mayor a 100 mil"* -> solo viven
-  en el **PDF escaneado** (via OCR), no en `faq.txt`.
-- Una pregunta fuera de la base -> el asistente **se abstiene** ("No tengo esa
-  informacion"), porque el score es bajo.
+Pruebalo:
+- *"Cual es el saldo promedio del estado de cuenta?"* / *"Cual es el saldo final?"*
+  -> responde desde el **estado de cuenta** (via OCR + ventanas).
+- *"Cuanto cuesta una SPEI menor a 100 mil?"* -> desde la **FAQ**.
+- *"Que es la cuenta Premium PR-2026?"* -> solo vive en `aviso-comisiones.pdf`.
+- Una pregunta fuera de la base -> el asistente **se abstiene** (el recuperador
+  devuelve `null` por score bajo).
 
-## Como se arma (las costuras del RAG a la vista)
+## Agregar tus propios documentos
+Deja cualquier `.pdf` (o `.txt`) en `../docs/` y reinicia. El front OCR-ea cada PDF
+nuevo (y lo cachea), lo mete al indice por ventanas, y ya puedes preguntarle. Para
+re-OCR de uno, borra su `.ocr.txt`.
+
+## Como se arma
 | Capa | Archivo | Que hace |
 |---|---|---|
-| Core RAG | `../rag.ts` | chunking, embeddings locales, `buscar()` (score + fuente), `retrieve()`. |
-| OCR del agente | `../ocr.ts` | Claude con vision transcribe el PDF escaneado. |
-| Indice (glue) | `app/rag-index.ts` | construye el indice UNA vez (FAQ + OCR) y expone `buscar`. |
+| Recuperador | `../avanzado/solucion.ts` | multilingue + hibrido + ventanas + dedup; `recuperar()` (score + fuente) y abstencion. |
+| OCR del agente | `../ocr.ts` | Claude con vision transcribe cada PDF. |
+| Indice (glue) | `app/rag-index.ts` | OCR cacheado de todos los PDF + ingest; expone `buscar` y el estado. |
 | Tool | `app/api/chat/route.ts` | `buscarEnBase` recupera fragmentos; el modelo responde SOLO con ellos. |
 | Estado | `app/api/estado/route.ts` | fase del indice + conteo por fuente (para el panel). |
 | Fuentes | `app/components/fuentes-card.tsx` | una tool = un componente: pinta los fragmentos citados. |
-| Panel | `app/components/base-conocimiento.tsx` | pipeline, fuentes y estado en vivo. |
+| Panel | `app/components/base-conocimiento.tsx` | pipeline, fuentes (del indice) y estado en vivo. |
 | Copiloto | `app/components/copilot.tsx` | chat + `renderParte` (texto = respuesta, tool = fuentes). |
 
-La version de **terminal** sigue igual: `npx tsx probar-rag.ts` en `..`.
+La version de **terminal** sigue igual: `npx tsx probar-rag.ts` en `..` (esa usa el
+RAG basico de `rag.ts`).
 
 ## Conceptos de UI generativa (para la clase)
 1. **Streaming por fases.** El indice (OCR + embeddings) y la busqueda muestran

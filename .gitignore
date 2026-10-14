@@ -10,3 +10,6 @@ dist/
 .DS_Store
 *.log
 *.tsbuildinfo
+*.ocr.txt
+# Documentos personales reales (nunca subir); el lab usa PDFs de demo ficticios.
+estadoCuentaUriel.pdf

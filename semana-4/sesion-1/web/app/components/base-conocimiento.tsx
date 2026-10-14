@@ -8,11 +8,19 @@ type Estado = {
   porFuente: Record<string, number>;
 };
 
-// Panel izquierdo: explica la base de conocimiento y muestra el estado del
-// indice EN VIVO. Construir el indice tiene fases (igual que el streaming de una
-// tool): primero el agente OCR-ea el PDF escaneado y se calculan los embeddings
-// locales, luego queda "listo". Al montarse dispara /api/estado, que arranca la
-// construccion y reporta el avance; aqui se ve ese flujo.
+// Descripciones amigables para las fuentes conocidas (las demas se muestran con
+// su nombre de archivo tal cual).
+const DESC: Record<string, string> = {
+  "faq.txt": "FAQ de NeuronBank: comision SPEI, limites, credito, fraude, horarios, tasas.",
+  "aviso-comisiones.pdf": "Aviso de comisiones (PDF escaneado). El agente lo OCR-ea; trae datos que no estan en la FAQ.",
+  "estado-cuenta-neuronbank.pdf": "Estado de cuenta demo (PDF de 8 hojas, datos ficticios). OCR + chunking por ventanas para poder preguntarle cualquier cosa.",
+};
+
+// Panel izquierdo: explica la base de conocimiento y muestra el estado del indice
+// EN VIVO. Construir el indice tiene fases (igual que el streaming de una tool):
+// el agente OCR-ea cada PDF (cacheado) y se calculan los embeddings, luego queda
+// "listo". Al montarse dispara /api/estado, que arranca la construccion y reporta
+// el avance; aqui se ve ese flujo. Las fuentes se listan desde el indice.
 export function BaseConocimiento() {
   const [e, setE] = useState<Estado | null>(null);
 
@@ -34,12 +42,11 @@ export function BaseConocimiento() {
   }, []);
 
   const fase = e?.fase ?? "idle";
-  const faq = contar(e, (f) => f.endsWith(".txt"));
-  const pdf = contar(e, (f) => f.endsWith(".pdf"));
+  const fuentes = Object.entries(e?.porFuente ?? {}).sort(([a], [b]) => a.localeCompare(b));
 
   const texto: Record<Estado["fase"], string> = {
     idle: "Preparando...",
-    indexando: "Indexando: OCR del PDF + embeddings locales...",
+    indexando: "Indexando: OCR de los PDF (cacheado) + embeddings...",
     listo: `Indice listo: ${e?.total ?? 0} fragmentos`,
     error: `Error al indexar: ${e?.error ?? ""}`,
   };
@@ -49,32 +56,32 @@ export function BaseConocimiento() {
       <div>
         <h1>Base de conocimiento</h1>
         <p className="lead">
-          El mismo RAG de la sesion, ahora con front-end. Pregunta en el copiloto
-          de la derecha y cada respuesta llega citando los fragmentos que recupero
-          del indice, con su score y su fuente.
+          RAG con front-end sobre documentos reales. Pregunta en el copiloto de la
+          derecha y cada respuesta llega citando los fragmentos que recupero del
+          indice (busqueda hibrida + ventanas), con su score y su fuente.
         </p>
       </div>
 
       <div className="card">
         <div className="card-head">
           <div className="card-title">Pipeline</div>
-          <span className="card-sub">chunking · embeddings locales · recuperacion</span>
+          <span className="card-sub">OCR · chunking · embeddings · recuperacion hibrida</span>
         </div>
         <div className="pipeline">
           <div className="step">
             <span className="n">1</span>
-            <div className="t">Ingesta + chunking</div>
-            <div className="d">La FAQ (.txt) se parte en fragmentos (un parrafo = un fragmento).</div>
+            <div className="t">OCR del agente (cacheado)</div>
+            <div className="d">Claude con vision lee cada PDF; el texto se guarda en docs/*.ocr.txt y se reusa.</div>
           </div>
           <div className="step">
             <span className="n">2</span>
-            <div className="t">OCR del PDF escaneado</div>
-            <div className="d">El agente (Claude con vision) transcribe el PDF y su texto entra al MISMO indice.</div>
+            <div className="t">Chunking por ventanas</div>
+            <div className="d">La FAQ por parrafo; los PDF en ventanas con solape + dedup, para no perder el dato clave.</div>
           </div>
           <div className="step">
             <span className="n">3</span>
-            <div className="t">Embeddings + similitud</div>
-            <div className="d">Cada fragmento se vectoriza en tu maquina; la pregunta recupera los mas cercanos.</div>
+            <div className="t">Embeddings + hibrido</div>
+            <div className="d">Embeddings multilingues locales; la pregunta recupera por coseno + lexico, o se abstiene.</div>
           </div>
         </div>
       </div>
@@ -85,22 +92,23 @@ export function BaseConocimiento() {
           <span className="card-sub">docs/</span>
         </div>
         <div className="fuentes">
-          <div className="source">
-            <span className="ic">📄</span>
-            <div className="meta">
-              <div className="name">faq.txt <span className="badge ok">FAQ</span></div>
-              <div className="desc">FAQ de NeuronBank: comision SPEI, limites, credito, fraude, horarios, tasas.</div>
-            </div>
-            <span className="count">{fase === "listo" ? `${faq} frag.` : "—"}</span>
-          </div>
-          <div className="source">
-            <span className="ic">🖨️</span>
-            <div className="meta">
-              <div className="name">aviso-comisiones.pdf <span className="badge warn">PDF escaneado · OCR</span></div>
-              <div className="desc">PDF solo-imagen (sin capa de texto). Lo lee el agente con vision; incluye datos que NO estan en la FAQ (SPEI &gt; $100,000, cuenta Premium PR-2026).</div>
-            </div>
-            <span className="count">{fase === "listo" ? `${pdf} frag.` : "—"}</span>
-          </div>
+          {fuentes.length === 0 && <div className="card-sub">Indexando...</div>}
+          {fuentes.map(([fuente, n]) => {
+            const esPdf = fuente.toLowerCase().endsWith(".pdf");
+            return (
+              <div className="source" key={fuente}>
+                <span className="ic">{esPdf ? "🖨️" : "📄"}</span>
+                <div className="meta">
+                  <div className="name">
+                    {fuente}{" "}
+                    <span className={`badge ${esPdf ? "warn" : "ok"}`}>{esPdf ? "PDF · OCR" : "texto"}</span>
+                  </div>
+                  <div className="desc">{DESC[fuente] ?? "Documento indexado en la base."}</div>
+                </div>
+                <span className="count">{n} frag.</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -112,11 +120,4 @@ export function BaseConocimiento() {
       </div>
     </div>
   );
-}
-
-function contar(e: Estado | null, pred: (fuente: string) => boolean): number {
-  if (!e) return 0;
-  return Object.entries(e.porFuente)
-    .filter(([f]) => pred(f))
-    .reduce((s, [, n]) => s + n, 0);
 }

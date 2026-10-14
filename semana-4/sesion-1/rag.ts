@@ -19,7 +19,8 @@ const index: Chunk[] = [];
 
 export async function ingest(dir = "docs") {
   // Solo archivos de texto; los binarios (PDF escaneado) entran por OCR -> ingestTexto.
-  for (const file of readdirSync(dir).filter((f) => f.endsWith(".txt"))) {
+  // Los .ocr.txt son el cache del OCR y entran por su propia via, no por aqui.
+  for (const file of readdirSync(dir).filter((f) => f.endsWith(".txt") && !f.endsWith(".ocr.txt"))) {
     const raw = readFileSync(join(dir, file), "utf8");
     for (const parrafo of raw.split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean)) {
       index.push({ text: parrafo, vec: await embed(parrafo), fuente: file });
