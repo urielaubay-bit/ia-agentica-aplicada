@@ -116,6 +116,19 @@ body {
 .score-bar > span { display: block; height: 100%; background: var(--brand); border-radius: 999px; }
 .fuente-text { font-size: 13px; line-height: 1.5; margin: 8px 0 0; color: var(--ink); }
 
+/* Fuentes colapsables (respuesta primero, "ver fuentes" bajo demanda) */
+.fuentes-toggle { margin-top: 10px; }
+.fuentes-toggle > summary {
+  cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; color: var(--brand);
+  border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; user-select: none;
+}
+.fuentes-toggle > summary::-webkit-details-marker { display: none; }
+.fuentes-toggle > summary::before { content: "▸"; font-size: 10px; }
+.fuentes-toggle[open] > summary::before { content: "▾"; }
+.fuentes-toggle > summary:hover { border-color: var(--brand); }
+.fuentes-toggle[open] > summary { margin-bottom: 10px; }
+
 /* ---------- Copilot panel (columna derecha) ---------- */
 .copilot {
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);

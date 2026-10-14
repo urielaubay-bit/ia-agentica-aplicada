@@ -1,6 +1,7 @@
 import { indexarUnaVez, estadoIndexado } from "../../rag-index";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic"; // no ejecutar en build (evita OCR/modelo al compilar)
 
 // Dispara la construccion del indice (si aun no empezo) y devuelve su estado.
 // El panel de la izquierda lo consulta cada pocos segundos para mostrar el flujo
