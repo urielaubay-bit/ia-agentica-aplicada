@@ -13,3 +13,5 @@ dist/
 *.ocr.txt
 # Documentos personales reales (nunca subir); el lab usa PDFs de demo ficticios.
 estadoCuentaUriel.pdf
+# Guía interna del instructor (no va al repo de participantes).
+semana-5/sesion-1/GUIA-INSTRUCTOR.md
