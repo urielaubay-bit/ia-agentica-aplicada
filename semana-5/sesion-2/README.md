@@ -114,6 +114,8 @@ copiloto y cada turno se registra con:
 - **costo** en USD y MXN, y el costo **por 1,000 consultas**,
 - los **fallos**, en rojo (haz clic en cualquier fila para ver el desglose).
 
+Y arriba, un badge que dice qué servicio de trazas está encendido, si hay alguno.
+
 Esa última cifra es la que le dices a un cliente. No "usa IA": *"mil consultas
 te cuestan esto"*.
 
@@ -142,41 +144,80 @@ Apágalo y compara:
 ROUTER=off npm run dev
 ```
 
-### LangSmith (opcional pero recomendado)
+### Langfuse: la capa del proveedor (opcional pero recomendado)
 
-El panel es tu observabilidad local. **LangSmith** es la de producción: trazas
-persistentes, por usuario, con el historial completo de cada tool.
+El panel es tu observabilidad local. **Langfuse** es la de producción: trazas
+persistentes, con el árbol completo de cada turno, tokens, latencia y costo
+calculado por ellos. Es el mismo servicio que usa el POC de referencia (Pulse).
 
-1. Crea una cuenta gratis en https://smith.langchain.com y saca una API key.
+1. Crea una cuenta gratis en https://cloud.langfuse.com (o la región de EE.UU.,
+   https://us.cloud.langfuse.com), crea un proyecto y saca el par de llaves.
 2. Exporta tres variables y levanta la app:
+
+```bash
+export LANGFUSE_PUBLIC_KEY=pk-lf-...
+export LANGFUSE_SECRET_KEY=sk-lf-...
+export LANGFUSE_BASEURL=https://us.cloud.langfuse.com   # o la de Europa
+cd web && npm run dev
+```
+
+El badge del panel pasa de *solo trazas locales* a *Langfuse ·
+us.cloud.langfuse.com*, y cada turno aparece en Langfuse como **una traza** con
+su árbol:
+
+```text
+turno-copiloto-neuronbank                      $0.004030
+├── ai.generateObject            (el router)
+│   └── GENERATION  claude-haiku-5-5
+├── ai.streamText                (el copiloto)
+│   └── GENERATION  claude-sonnet-5-5
+├── ai.toolCall generarReporte
+└── GENERATION  claude-sonnet-5-5   (el paso despues de la tool)
+```
+
+Eso es un turno completo: quién decidió, quién respondió, qué tool corrió y qué
+costó. Verificado el 2026-10-22 contra un proyecto real.
+
+Cómo entra, y fíjate en lo que **no** hay que tocar: ninguna tool, ningún
+componente. Solo `instrumentation.ts` (donde se registra OpenTelemetry) y una
+línea por llamada:
+
+```ts
+experimental_telemetry: { isEnabled: true, functionId: "turno-copiloto-neuronbank" }
+```
+
+> **La trampa que nos costó media hora, y es la lección:** el SDK de Langfuse lee
+> `LANGFUSE_BASEURL`, **sin guion bajo** entre BASE y URL. Si tu proyecto está en
+> la nube de EE.UU. y exportas `LANGFUSE_BASE_URL` (el nombre que *parece*
+> correcto), el exporter no la ve, se va al default de Europa con llaves de
+> EE.UU. y **las trazas no llegan, sin un solo error**. El código de este lab
+> acepta los dos nombres y pasa la URL explícita. Para verlo salir en vivo:
+> `LANGFUSE_DEBUG=true`.
+
+### LangSmith, si tu cliente usa ese
+
+Mismo resultado, otra vía. En vez de OpenTelemetry, se envuelve el SDK:
+
+```ts
+import * as ai from "ai";
+import { wrapAISDK } from "langsmith/experimental/vercel";
+const { streamText, generateObject } = wrapAISDK(ai);
+```
 
 ```bash
 export LANGSMITH_TRACING=true
 export LANGSMITH_API_KEY=lsv2_pt_...
 export LANGSMITH_PROJECT=neuronbank-tu-nombre
-npm run dev
 ```
 
-(En Windows, `setx` y terminal nueva, igual que la `ANTHROPIC_API_KEY`.)
+El badge lo detecta solo y dice *LangSmith · tu-proyecto*.
+(`wrapAISDK` es el camino para AI SDK v5 y v6; el `LangSmithTelemetry` que verás
+en algunos blogs es solo v7.)
 
-El badge del panel pasa de *LangSmith apagado* a *LangSmith · tu-proyecto*, y
-cada turno aparece en el dashboard de LangSmith con el árbol completo: router →
-copiloto → cada tool, con entradas, salidas, tokens y latencia.
-
-Son **tres líneas** de código, en `web/app/api/chat/route.ts`:
-
-```ts
-const LANGSMITH = process.env.LANGSMITH_TRACING === "true" && !!process.env.LANGSMITH_API_KEY;
-const { streamText, generateObject } = LANGSMITH ? wrapAISDK(ai) : ai;
-```
-
-Si no hay clave, el SDK va sin envolver y la app corre igual. **Tu
-observabilidad nunca debe depender de un servicio externo.**
-
-> `wrapAISDK` es el camino correcto para AI SDK v5 y v6. El `LangSmithTelemetry`
-> que verás en algunos blogs es solo para AI SDK v7.
-
----
+**La regla, y es lo que te llevas:** si no hay claves de ninguno, el SDK va sin
+tocar, la app corre igual y el panel sigue completo. **Tu observabilidad nunca
+debe depender de un servicio externo.** El proveedor es un intercambiable, no un
+cimiento.
 
 ## Parte 4 · Capstone: agentes que se reparan (15 min)
 

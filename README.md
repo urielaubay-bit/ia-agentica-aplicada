@@ -24,7 +24,7 @@ Código de los laboratorios del curso **IA Agéntica Aplicada** de NeuronProcess
    echo 'export ANTHROPIC_API_KEY=sk-ant-...' >> ~/.bashrc && source ~/.bashrc
    ```
 
-   (Solo para la Semana 4 · Sesión 2 configura además `BOT_TOKEN` igual: `setx BOT_TOKEN "..."` en Windows, o `export BOT_TOKEN=...` en Mac/Linux. Para la Semana 5 · Sesión 2, `LANGSMITH_API_KEY` es **opcional**: ver [SETUP.md](SETUP.md).)
+   (Solo para la Semana 4 · Sesión 2 configura además `BOT_TOKEN` igual: `setx BOT_TOKEN "..."` en Windows, o `export BOT_TOKEN=...` en Mac/Linux. Para la Semana 5 · Sesión 2, las llaves de **Langfuse** son **opcionales**: ver [SETUP.md](SETUP.md).)
 3. Entra a la sesión del día, instala y corre. **Sin `.env`, sin `--env-file`**: los scripts leen la key de tu entorno.
    ```bash
    cd semana-1/sesion-1

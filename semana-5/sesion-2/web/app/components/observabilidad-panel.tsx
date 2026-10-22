@@ -42,8 +42,7 @@ type Datos = {
     latenciaP50: number;
     errores: number;
   };
-  langsmith: boolean;
-  proyecto: string;
+  vendor: { nombre: string; detalle: string } | null;
 };
 
 const USD_MXN = 18.5;
@@ -88,8 +87,8 @@ export function ObservabilidadPanel() {
       <div className="card-head">
         <span className="card-title">
           Observabilidad y costo
-          <span className={`badge ${d.langsmith ? "ok" : "warn"}`}>
-            {d.langsmith ? `LangSmith · ${d.proyecto}` : "LangSmith apagado"}
+          <span className={`badge ${d.vendor ? "ok" : "warn"}`}>
+            {d.vendor ? `${d.vendor.nombre} · ${d.vendor.detalle}` : "solo trazas locales"}
           </span>
         </span>
         <button className="link-btn" onClick={limpiar} disabled={r.turnos === 0}>
@@ -100,6 +99,7 @@ export function ObservabilidadPanel() {
       {r.turnos === 0 ? (
         <p className="card-sub" style={{ margin: 0 }}>
           Preguntale algo al copiloto y cada turno aparece aqui con sus tokens, su latencia y su costo.
+          {!d.vendor && " Sin claves de Langfuse o LangSmith, esta es toda tu observabilidad: suficiente, y no depende de nadie."}
         </p>
       ) : (
         <>

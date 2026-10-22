@@ -1,7 +1,6 @@
 import "dotenv/config";
 import { anthropic } from "@ai-sdk/anthropic";
-import * as ai from "ai";
-import { wrapAISDK } from "langsmith/experimental/vercel";
+import { generateText } from "ai";
 import { costoUsd, mxn, usd } from "./web/app/lib/precios";
 
 // PASO 1 de la sesion. Una llamada, cuatro numeros: latencia, tokens, cache y
@@ -9,15 +8,10 @@ import { costoUsd, mxn, usd } from "./web/app/lib/precios";
 // produccion, por bonito que se vea el demo.
 //
 // Correr:  npx tsx observabilidad.ts
-// Con LangSmith:  LANGSMITH_TRACING=true LANGSMITH_API_KEY=lsv2_... npx tsx observabilidad.ts
-
-const LANGSMITH =
-  process.env.LANGSMITH_TRACING === "true" && !!process.env.LANGSMITH_API_KEY;
-
-// Una linea y cada llamada queda en LangSmith. Sin clave, el SDK va sin
-// envolver y el script corre igual: la medicion local nunca depende de un
-// servicio externo.
-const { generateText } = LANGSMITH ? wrapAISDK(ai) : ai;
+//
+// Esta es la capa de observabilidad que SIEMPRE tienes: la tuya. No necesita
+// cuenta, servicio ni red mas que la del modelo. La capa del proveedor
+// (Langfuse) se ve en la app web, en web/.
 
 const MODELO = process.env.MODELO ?? "claude-sonnet-5-5";
 
@@ -43,7 +37,7 @@ console.log("latencia_ms:  ", ms);
 console.log("tokens:       ", tokens);
 console.log("costo:        ", `${usd(costo)} USD  (${mxn(costo)} MXN)`);
 console.log("por 1,000:    ", `${usd(costo * 1000)} USD  (${mxn(costo * 1000)} MXN)`);
-console.log("langsmith:    ", LANGSMITH ? "si, revisa tu proyecto en smith.langchain.com" : "apagado");
+console.log("trazas:       ", "locales (la capa del proveedor se ve en web/, con Langfuse)");
 
 // Fijate en que cacheLeido y cacheEscrito salen en CERO: el system de este
 // script tiene 10 tokens y el minimo cacheable del modelo son 512. El cache no

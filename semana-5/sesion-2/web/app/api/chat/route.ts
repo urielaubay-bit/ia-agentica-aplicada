@@ -4,6 +4,7 @@ import { wrapAISDK } from "langsmith/experimental/vercel";
 import { stepCountIs, tool, convertToModelMessages, type UIMessage } from "ai";
 import { z } from "zod";
 import { POLITICAS } from "../../lib/politicas";
+import { LANGFUSE, LANGSMITH } from "../../lib/vendor";
 import { agregarLlamada, cerrarTraza, nuevaTraza } from "../../lib/trazas";
 import {
   getCuenta,
@@ -29,17 +30,36 @@ export const maxDuration = 60;
 //      registra no existe, y lo que no existe no se arregla.
 // ===========================================================================
 
-// --- 1) LangSmith -----------------------------------------------------------
-// wrapAISDK envuelve las funciones del AI SDK y manda cada llamada (y cada
-// tool) a LangSmith. Si no hay clave, usamos el SDK sin envolver: la app corre
-// igual y el panel de abajo sigue funcionando. La observabilidad propia nunca
-// depende de un servicio externo.
-const LANGSMITH =
-  process.env.LANGSMITH_TRACING === "true" && !!process.env.LANGSMITH_API_KEY;
+// --- 1) El servicio de trazas (opcional, y es un intercambiable) -----------
+//
+// Dos vias, y el codigo de las tools no cambia en ninguna:
+//
+//   LANGFUSE  (la del POC de referencia) entra por OpenTelemetry. El registro
+//             vive en instrumentation.ts y aqui solo se marca cada llamada con
+//             `experimental_telemetry`. Nada mas.
+//   LANGSMITH entra envolviendo el SDK con wrapAISDK: cada llamada y cada tool
+//             se trazan solas.
+//
+// Sin claves, ninguna de las dos se enciende y la app corre igual: el panel de
+// observabilidad es nuestro (lib/trazas.ts) y no depende de ningun servicio.
+// Esa es la regla: el proveedor es un intercambiable, no un cimiento.
 
 // Ojo: streamText envuelto devuelve una PROMESA, el sin envolver no. Con
 // `await` las dos formas funcionan y el resto del archivo no cambia.
 const { streamText, generateObject } = LANGSMITH ? wrapAISDK(ai) : ai;
+
+// Lo que hace que los spans lleguen a Langfuse. Con LANGFUSE apagado el AI SDK
+// no emite telemetria y no hay costo de rendimiento.
+// El `functionId` es el nombre que Langfuse le pone a la TRAZA, y las dos
+// llamadas de un turno (router y copiloto) caen en la misma traza porque
+// comparten el request. Por eso las dos llevan el mismo nombre: asi cada turno
+// se ve igual en la lista. Lo que las distingue va en `metadata.etapa` y en el
+// nombre del span hijo (ai.generateObject / ai.streamText).
+const telemetria = (etapa: string, metadata: Record<string, string> = {}) => ({
+  isEnabled: LANGFUSE,
+  functionId: "turno-copiloto-neuronbank",
+  metadata: { etapa, ...metadata },
+});
 
 // --- 2) Dos niveles de modelo ----------------------------------------------
 // El caro razona, el barato atiende volumen. Se configuran por entorno para
@@ -180,6 +200,7 @@ async function elegirModelo(pregunta: string, traza: ReturnType<typeof nuevaTraz
       model: anthropic(MODELO_VOLUMEN),
       schema: decision,
       temperature: 0,
+      experimental_telemetry: telemetria("router"),
       system:
         "Clasificas preguntas para el copiloto de un banco. " +
         "'simple' = saludo, duda de politica (comisiones, limites, horarios, fraude), consulta de UN dato de UNA cuenta. " +
@@ -215,7 +236,7 @@ export async function POST(req: Request) {
   const pregunta =
     ultimo?.parts?.filter((p: any) => p.type === "text").map((p: any) => p.text).join(" ") ?? "";
 
-  const traza = nuevaTraza(pregunta, LANGSMITH);
+  const traza = nuevaTraza(pregunta, LANGFUSE || LANGSMITH);
   const t0 = Date.now();
 
   const { modelo, motivo } = await elegirModelo(pregunta, traza);
@@ -241,6 +262,7 @@ export async function POST(req: Request) {
       // eso lo permitimos de forma explicita. Nunca metas texto del usuario
       // en un mensaje system.
       allowSystemInMessages: true,
+      experimental_telemetry: telemetria("copiloto", { modelo, router: motivo }),
       tools: TOOLS,
       stopWhen: stepCountIs(5),
       // Esto es lo que hace medible el turno. onFinish corre cuando el stream

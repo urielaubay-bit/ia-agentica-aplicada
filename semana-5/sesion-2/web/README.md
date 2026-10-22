@@ -8,14 +8,18 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-Con LangSmith (opcional):
+Con Langfuse (opcional):
 
 ```bash
-export LANGSMITH_TRACING=true
-export LANGSMITH_API_KEY=lsv2_pt_...
-export LANGSMITH_PROJECT=neuronbank-tu-nombre
+export LANGFUSE_PUBLIC_KEY=pk-lf-...
+export LANGFUSE_SECRET_KEY=sk-lf-...
+export LANGFUSE_BASEURL=https://us.cloud.langfuse.com   # o la de Europa
 npm run dev
 ```
+
+**Cuidado con el nombre:** es `LANGFUSE_BASEURL`, sin guion bajo entre BASE y
+URL. Con `LANGFUSE_BASE_URL` el exporter no la ve, se va al default de Europa y
+las trazas no llegan sin ningun error. `LANGFUSE_DEBUG=true` imprime cada lote.
 
 ## Qué cambió respecto a Semana 2
 
@@ -27,9 +31,12 @@ Las tools son **las mismas siete**. Lo nuevo son cuatro archivos:
 | `app/lib/precios.ts` | Tabla de precios y la aritmética de costo. **El único archivo que editas** si cambian los precios |
 | `app/lib/trazas.ts` | Almacén de trazas en memoria: una fila por turno |
 | `app/components/observabilidad-panel.tsx` | El panel que lo muestra, debajo del dashboard |
+| `app/lib/vendor.ts` | Que servicio de trazas esta encendido, decidido por las claves del entorno |
+| `instrumentation.ts` | Donde se registra OpenTelemetry para Langfuse. Next lo llama una vez al arrancar |
 
-Y en `app/api/chat/route.ts`, tres bloques marcados con comentarios:
-LangSmith (`wrapAISDK`), el router de dos niveles y el `onFinish` que mide.
+Y en `app/api/chat/route.ts`, tres bloques marcados con comentarios: el servicio
+de trazas (Langfuse por `experimental_telemetry`, LangSmith por `wrapAISDK`), el
+router de dos niveles y el `onFinish` que mide.
 
 ## Variables de entorno
 
@@ -39,7 +46,11 @@ LangSmith (`wrapAISDK`), el router de dos niveles y el `onFinish` que mide.
 | `MODELO_RAZONA` | `claude-sonnet-5-5` | El modelo que razona |
 | `MODELO_VOLUMEN` | `claude-haiku-5-5` | El barato: router y consultas simples |
 | `ROUTER` | encendido | `ROUTER=off` manda todo al modelo caro |
-| `LANGSMITH_TRACING` | — | `true` para trazar |
+| `LANGFUSE_PUBLIC_KEY` | — | `pk-lf-...` de tu proyecto de Langfuse |
+| `LANGFUSE_SECRET_KEY` | — | `sk-lf-...` del mismo proyecto |
+| `LANGFUSE_BASEURL` | nube de Europa | **Sin guion bajo entre BASE y URL.** Pon la region de tu proyecto |
+| `LANGFUSE_DEBUG` | — | `true` imprime cada lote de spans que sale |
+| `LANGSMITH_TRACING` | — | `true` para trazar con LangSmith en vez de Langfuse |
 | `LANGSMITH_API_KEY` | — | Tu clave de smith.langchain.com |
 | `LANGSMITH_PROJECT` | `default` | Nombre del proyecto en LangSmith |
 
@@ -79,7 +90,9 @@ MODELO_RAZONA=claude-haiku-4-5 npm run dev          # el cache deja de aparecer 
 
 ## Límites honestos (dilos si presentas esto)
 
-- Las trazas viven **en RAM del proceso**: se borran al reiniciar y con varias
+- El badge dice **solo trazas locales** cuando no hay claves de ningun
+  proveedor. No es un error: es el estado por default y la app funciona completa.
+- Las trazas del panel viven **en RAM del proceso**: se borran al reiniciar y con varias
   instancias cada una tendría las suyas. En producción es una tabla o un
   servicio de trazas. LangSmith es justamente eso.
 - El panel hace **polling cada 2 s**. Suficiente para una clase, no para un

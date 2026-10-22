@@ -1,5 +1,6 @@
 import { limpiarTrazas, listarTrazas, resumen } from "../../lib/trazas";
 import { por1000 } from "../../lib/precios";
+import { vendor } from "../../lib/vendor";
 
 // Endpoint que alimenta el panel de observabilidad. Lo que en produccion seria
 // la API de tu servicio de trazas, aqui son 20 lineas sobre un arreglo.
@@ -15,8 +16,7 @@ export async function GET() {
       ahorroCacheUsd: r.costoSinCacheUsd - r.costoUsd,
       por1000Usd: por1000(r.costoUsd, r.turnos),
     },
-    langsmith: process.env.LANGSMITH_TRACING === "true" && !!process.env.LANGSMITH_API_KEY,
-    proyecto: process.env.LANGSMITH_PROJECT ?? "default",
+    vendor: vendor(),
   });
 }
 
