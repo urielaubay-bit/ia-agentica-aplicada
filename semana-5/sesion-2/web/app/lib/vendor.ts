@@ -17,12 +17,26 @@ export const LANGFUSE =
 export const LANGSMITH =
   process.env.LANGSMITH_TRACING === "true" && !!process.env.LANGSMITH_API_KEY;
 
+// UN SOLO lugar que resuelve la URL de Langfuse, y lo usan tanto
+// instrumentation.ts (que manda los spans) como el badge del panel. Cuando
+// estaban separados, el badge decia "cloud.langfuse.com" mientras las trazas
+// se iban a la region de EE.UU.: un panel que miente es peor que no tener
+// panel. Se aceptan los dos nombres de variable porque el SDK solo lee
+// LANGFUSE_BASEURL (sin guion bajo) y el nombre con guion bajo es el error
+// natural.
+export function langfuseBaseUrl(): string {
+  return (
+    process.env.LANGFUSE_BASEURL ??
+    process.env.LANGFUSE_BASE_URL ??
+    "https://cloud.langfuse.com"
+  );
+}
+
 export type Vendor = { nombre: string; detalle: string } | null;
 
 export function vendor(): Vendor {
   if (LANGFUSE) {
-    const url = process.env.LANGFUSE_BASE_URL ?? "https://cloud.langfuse.com";
-    return { nombre: "Langfuse", detalle: url.replace(/^https?:\/\//, "") };
+    return { nombre: "Langfuse", detalle: langfuseBaseUrl().replace(/^https?:\/\//, "") };
   }
   if (LANGSMITH) {
     return { nombre: "LangSmith", detalle: process.env.LANGSMITH_PROJECT ?? "default" };

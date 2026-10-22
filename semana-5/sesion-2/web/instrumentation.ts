@@ -25,11 +25,10 @@ export async function register() {
     // proyecto esta en la nube de EE.UU. y pasas LANGFUSE_BASE_URL (el nombre
     // que parece correcto), el exporter no la ve, se va al default de Europa
     // con claves de EE.UU. y los traces NO LLEGAN. Sin error visible.
-    // Aqui se pasa explicito y se aceptan los dos nombres.
-    const baseUrl =
-      process.env.LANGFUSE_BASEURL ??
-      process.env.LANGFUSE_BASE_URL ??
-      "https://cloud.langfuse.com";
+    // La URL se resuelve en app/lib/vendor.ts para que el badge del panel y el
+    // exporter nunca puedan discrepar.
+    const { langfuseBaseUrl } = await import("./app/lib/vendor");
+    const baseUrl = langfuseBaseUrl();
 
     registerOTel({
       serviceName: "copiloto-neuronbank",
