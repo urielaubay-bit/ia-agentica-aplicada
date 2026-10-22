@@ -76,6 +76,36 @@ Pasos: 2
 ```
 Si ves eso, estás listo para el curso. 🎉
 
+## 8. Opcional: LangSmith (solo Semana 5 · Sesión 2)
+
+La última sesión traza el agente en **LangSmith**. Es **opcional**: sin clave, el
+lab corre igual y el panel de observabilidad de la app funciona completo.
+
+Si quieres las trazas en la nube:
+
+1. Crea una cuenta gratis en https://smith.langchain.com y genera una API key
+   (empieza con `lsv2_pt_...`).
+2. Configura tres variables, igual que la de Anthropic:
+
+   **Windows (PowerShell o CMD):**
+   ```powershell
+   setx LANGSMITH_TRACING "true"
+   setx LANGSMITH_API_KEY "lsv2_pt_..."
+   setx LANGSMITH_PROJECT "neuronbank-tu-nombre"
+   ```
+   Cierra y abre una terminal nueva.
+
+   **Mac / Linux:**
+   ```bash
+   echo 'export LANGSMITH_TRACING=true' >> ~/.bashrc
+   echo 'export LANGSMITH_API_KEY=lsv2_pt_...' >> ~/.bashrc
+   echo 'export LANGSMITH_PROJECT=neuronbank-tu-nombre' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+
+Si la clave está mal, verás `403 Forbidden` en la consola del servidor y la app
+seguirá respondiendo con normalidad.
+
 ---
 
 ## Si algo falla
@@ -88,6 +118,8 @@ Si ves eso, estás listo para el curso. 🎉
 | `npx` pregunta si instalar `tsx` la primera vez | Normal | Acepta (`y`); solo pasa una vez. |
 | La primera corrida tarda | Descarga dependencias | Espera; las siguientes son rápidas. |
 | Semana 4: `BOT_TOKEN is not set` | Falta el token del bot | Windows `setx BOT_TOKEN "..."` (abre terminal nueva); Mac/Linux `export BOT_TOKEN=...`. |
+| Semana 5: `403 Forbidden` en la consola | Clave de LangSmith inválida | Es opcional: la app funciona igual. Revisa la clave (paso 8) o apaga `LANGSMITH_TRACING`. |
+| Semana 5: la web pide un segundo `npm install` | `semana-5/sesion-2/web` es un proyecto aparte | Corre `npm install` también dentro de `web/`. |
 
 ## Checklist final
 
